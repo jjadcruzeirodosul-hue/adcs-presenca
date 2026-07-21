@@ -1,6 +1,6 @@
 name: Publicar ADCS Presenca
 
-on:
+on: 
   push:
     branches:
       - main
