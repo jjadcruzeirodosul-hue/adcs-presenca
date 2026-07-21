@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Controle de Presença - ADCS</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>🥋 Jiu-Jitsu ADCS</h1>
+
+        <p>Controle de Presença</p>
+
+        <select id="professor">
+            <option value="">Selecione o professor</option>
+        </select>
+
+        <input
+            type="text"
+            id="matricula"
+            placeholder="Digite ou leia a matrícula">
+
+        <button type="button" onclick="abrirCamera()">
+            📷 Ler QR Code
+        </button>
+
+        <div id="reader"></div>
+
+        <button onclick="registrar()">
+            Registrar Presença
+        </button>
+
+        <div id="mensagem"></div>
+
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <script src="app.js"></script>
+
+</body>
+
+</html>
