@@ -1,17 +1,26 @@
 {
   "product": "ADCS Presença",
   "version": "0.1.0-rc.1",
+  "semver": "0.1.0-rc.1",
   "tag": "v0.1.0-rc.1",
   "type": "release-candidate",
+  "stage": "Release Candidate",
+  "channel": "RC",
+  "artifact": "v0.1.0-rc.1",
   "branch": "release/v0.1.0-rc.1",
   "baseline_commit": "4255874",
-  "release_commit": "",
+  "release_commit": "ff5ef88",
   "environment": "QA",
-  "status": "In Preparation",
+  "status": "Ready",
   "sprint": "Sprint 1",
-  "release_date": "2026-08-01",
+  "prepared_date": "2026-08-01",
+  "published_date": "",
   "approved_by": [
     "Testes e Qualidade",
     "Engenharia de Release"
+  ],
+  "artifacts": [
+    "CHANGELOG.md",
+    "Release-Notes-v0.1.0-rc.1.md"
   ]
 }
