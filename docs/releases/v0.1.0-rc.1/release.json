@@ -1,0 +1,17 @@
+{
+  "product": "ADCS Presença",
+  "version": "0.1.0-rc.1",
+  "tag": "v0.1.0-rc.1",
+  "type": "release-candidate",
+  "branch": "release/v0.1.0-rc.1",
+  "baseline_commit": "4255874",
+  "release_commit": "",
+  "environment": "QA",
+  "status": "In Preparation",
+  "sprint": "Sprint 1",
+  "release_date": "2026-08-01",
+  "approved_by": [
+    "Testes e Qualidade",
+    "Engenharia de Release"
+  ]
+}
