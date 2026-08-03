@@ -45,9 +45,18 @@ async function iniciarAplicacao() {
 }
 
 /**
- * Aguarda o carregamento completo da estrutura HTML.
+ * Inicializa imediatamente quando o DOM já estiver disponível.
+ * Caso contrário, aguarda o evento DOMContentLoaded.
+ *
+ * Essa verificação é necessária porque dependências com importação
+ * dinâmica podem concluir o carregamento após o DOMContentLoaded.
  */
-document.addEventListener(
-    "DOMContentLoaded",
-    iniciarAplicacao
-);
+if (document.readyState === "loading") {
+    document.addEventListener(
+        "DOMContentLoaded",
+        iniciarAplicacao,
+        { once: true }
+    );
+} else {
+    iniciarAplicacao();
+}
