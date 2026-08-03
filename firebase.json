@@ -3,8 +3,23 @@
     "public": ".",
     "ignore": [
       "firebase.json",
+      ".firebaserc",
+      ".gitignore",
+      ".github/**",
+	  ".git/**",
+      ".firebase/**",
+      "docs/**",
+      "README.md",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "firestore.rules",
+      "firestore.indexes.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/*.zip",
+      "**/*.bak",
+      "**/*.old",
+      "**/*.tmp"
     ],
     "rewrites": [
       {

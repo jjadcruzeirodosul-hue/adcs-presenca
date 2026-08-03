@@ -1,5 +1,10 @@
 {
   "projects": {
-    "default": "adcs-presenca-jiu-jitsu"
-  }
+    "default": "adcs-presenca-jiu-jitsu",
+    "dev": "adcs-presenca-jiu-jitsu",
+    "qa": "adcs-presenca-qa",
+    "prod": "adcs-presenca-prod"
+  },
+  "targets": {},
+  "etags": {}
 }
