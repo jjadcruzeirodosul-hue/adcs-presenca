@@ -1,0 +1,41 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /professores/{professorId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /alunos/{alunoId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /presencas/{presencaId} {
+      // Permite verificar uma presença específica.
+      allow get: if true;
+
+      // Impede listar todas as presenças publicamente.
+      allow list: if false;
+
+      allow create: if
+        request.resource.data.alunoId is string &&
+        request.resource.data.professorId is string &&
+        request.resource.data.matricula is string &&
+        request.resource.data.nomeAluno is string &&
+        request.resource.data.nomeProfessor is string &&
+        request.resource.data.faixa is string &&
+        request.resource.data.dia is string &&
+        request.resource.data.origem is string &&
+        request.resource.data.dataHora == request.time;
+
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

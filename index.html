@@ -1,50 +1,366 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Controle de Presença - ADCS</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <link rel="stylesheet" href="style.css">
+    <meta
+        name="description"
+        content="Sistema de registro de presença dos alunos do Jiu-Jitsu ADCS."
+    >
+
+    <title>Registro de Presença | ADCS Jiu-Jitsu</title>
+
+    <link rel="stylesheet" href="./style.css">
 </head>
 
 <body>
+    <div class="app">
+        <header class="app-header">
+            <div class="app-header__content">
+                <p class="app-header__eyebrow">
+                    ADCS Jiu-Jitsu
+                </p>
 
-    <div class="container">
+                <h1 class="app-header__title">
+                    Registro de Presença
+                </h1>
 
-        <h1>🥋 Jiu-Jitsu ADCS</h1>
+                <p class="app-header__description">
+                    Selecione o professor responsável e escolha como deseja
+                    registrar o aluno.
+                </p>
+            </div>
 
-        <p>Controle de Presença - Firebase2</p>
+            <div
+                id="statusSistema"
+                class="system-status"
+                role="status"
+                aria-live="polite"
+            >
+                <span
+                    class="system-status__indicator"
+                    aria-hidden="true"
+                ></span>
 
-        <select id="professor">
-            <option value="">Selecione o professor</option>
-        </select>
+                <span class="system-status__text">
+                    Sistema disponível
+                </span>
+            </div>
+        </header>
 
-        <input
-            type="text"
-            id="matricula"
-            placeholder="Digite ou leia a matrícula">
+        <main class="app-main">
+            <section
+                class="attendance-card"
+                aria-labelledby="tituloRegistro"
+            >
+                <header class="attendance-card__header">
+                    <div>
+                        <p class="attendance-card__step">
+                            Registro de entrada
+                        </p>
 
-        <button type="button" onclick="abrirCamera()">
-            📷 Ler QR Code
-        </button>
+                        <h2
+                            id="tituloRegistro"
+                            class="attendance-card__title"
+                        >
+                            Identifique o aluno
+                        </h2>
+                    </div>
+                </header>
 
-        <div id="reader"></div>
+                <div class="form-field">
+                    <label
+                        for="professor"
+                        class="form-field__label"
+                    >
+                        Professor responsável
+                    </label>
 
-        <button onclick="registrar()">
-            Registrar Presença
-        </button>
+                    <select
+                        id="professor"
+                        name="professor"
+                        class="form-field__control"
+                        required
+                        aria-describedby="ajudaProfessor"
+                    >
+                        <option value="">
+                            Selecione o professor
+                        </option>
+                    </select>
 
-        <div id="mensagem"></div>
+                    <p
+                        id="ajudaProfessor"
+                        class="form-field__help"
+                    >
+                        Selecione quem está responsável pela aula.
+                    </p>
+                </div>
 
+                <nav
+                    class="registration-mode"
+                    aria-label="Modo de registro da presença"
+                >
+                    <button
+                        id="btnModoManual"
+                        class="registration-mode__button registration-mode__button--active"
+                        type="button"
+                        aria-controls="painelManual"
+                        aria-pressed="true"
+                    >
+                        <span aria-hidden="true">⌨️</span>
+                        <span>Manual</span>
+                    </button>
+
+                    <button
+                        id="btnModoCamera"
+                        class="registration-mode__button"
+                        type="button"
+                        aria-controls="painelCamera"
+                        aria-pressed="false"
+                    >
+                        <span aria-hidden="true">📷</span>
+                        <span>QR Code</span>
+                    </button>
+                </nav>
+
+                <section
+                    id="painelManual"
+                    class="registration-panel"
+                    aria-labelledby="tituloModoManual"
+                >
+                    <div class="registration-panel__header">
+                        <h3
+                            id="tituloModoManual"
+                            class="registration-panel__title"
+                        >
+                            Registro manual
+                        </h3>
+
+                        <p class="registration-panel__description">
+                            Digite a matrícula do aluno para registrar
+                            a presença.
+                        </p>
+                    </div>
+
+                    <form
+                        id="formRegistroManual"
+                        class="attendance-form"
+                        novalidate
+                    >
+                        <div class="form-field">
+                            <label
+                                for="matricula"
+                                class="form-field__label"
+                            >
+                                Matrícula do aluno
+                            </label>
+
+                            <input
+                                id="matricula"
+                                name="matricula"
+                                class="form-field__control"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                placeholder="Digite a matrícula"
+                                aria-describedby="ajudaMatricula"
+                                required
+                            >
+
+                            <p
+                                id="ajudaMatricula"
+                                class="form-field__help"
+                            >
+                                Informe a matrícula apresentada na carteirinha
+                                do aluno.
+                            </p>
+                        </div>
+
+                        <button
+                            id="btnRegistrarManual"
+                            class="button button--primary button--full"
+                            type="submit"
+                        >
+                            <span
+                                class="button__icon"
+                                aria-hidden="true"
+                            >
+                                ✓
+                            </span>
+
+                            <span class="button__text">
+                                Registrar presença
+                            </span>
+                        </button>
+                    </form>
+                </section>
+
+                <section
+                    id="painelCamera"
+                    class="registration-panel"
+                    aria-labelledby="tituloModoCamera"
+                    hidden
+                >
+                    <div class="registration-panel__header">
+                        <h3
+                            id="tituloModoCamera"
+                            class="registration-panel__title"
+                        >
+                            Leitura por QR Code
+                        </h3>
+
+                        <p class="registration-panel__description">
+                            Posicione o QR Code da carteirinha dentro
+                            da área de leitura.
+                        </p>
+                    </div>
+
+                    <div class="scanner">
+                        <div
+                            id="reader"
+                            class="scanner__reader"
+                            aria-label="Área de leitura do QR Code"
+                        ></div>
+
+                        <div
+                            id="scannerPlaceholder"
+                            class="scanner__placeholder"
+                        >
+                            <span
+                                class="scanner__placeholder-icon"
+                                aria-hidden="true"
+                            >
+                                📷
+                            </span>
+
+                            <p class="scanner__placeholder-title">
+                                Câmera desligada
+                            </p>
+
+                            <p class="scanner__placeholder-description">
+                                Ative a câmera para iniciar a leitura.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="scanner-actions">
+                        <button
+                            id="btnIniciarCamera"
+                            class="button button--primary button--full"
+                            type="button"
+                        >
+                            <span
+                                class="button__icon"
+                                aria-hidden="true"
+                            >
+                                📷
+                            </span>
+
+                            <span class="button__text">
+                                Iniciar câmera
+                            </span>
+                        </button>
+
+                        <button
+                            id="btnEncerrarCamera"
+                            class="button button--secondary button--full"
+                            type="button"
+                            hidden
+                        >
+                            <span class="button__text">
+                                Encerrar câmera
+                            </span>
+                        </button>
+                    </div>
+                </section>
+
+                <div
+                    id="loadingPresenca"
+                    class="loading"
+                    role="status"
+                    aria-live="polite"
+                    hidden
+                >
+                    <span
+                        class="loading__spinner"
+                        aria-hidden="true"
+                    ></span>
+
+                    <span id="loadingTexto">
+                        Processando...
+                    </span>
+                </div>
+
+                <div
+                    id="mensagem"
+                    class="feedback"
+                    role="status"
+                    aria-live="polite"
+                    aria-atomic="true"
+                    hidden
+                ></div>
+            </section>
+
+            <section
+                id="resultadoPresenca"
+                class="result-card"
+                aria-labelledby="tituloResultado"
+                aria-live="polite"
+                hidden
+            >
+                <div
+                    id="resultadoIcone"
+                    class="result-card__icon"
+                    aria-hidden="true"
+                >
+                    ✓
+                </div>
+
+                <div class="result-card__content">
+                    <p
+                        id="resultadoStatus"
+                        class="result-card__status"
+                    >
+                        Presença registrada
+                    </p>
+
+                    <h2
+                        id="tituloResultado"
+                        class="result-card__student"
+                    >
+                        Nome do aluno
+                    </h2>
+
+                    <p
+                        id="resultadoDetalhes"
+                        class="result-card__details"
+                    >
+                        Faixa e grau
+                    </p>
+
+                    <p
+                        id="resultadoHorario"
+                        class="result-card__time"
+                    >
+                        Horário do registro
+                    </p>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p>
+                ADCS Presença
+            </p>
+        </footer>
     </div>
 
-    <script src="https://unpkg.com/html5-qrcode"></script>
-
-	<script type="module" src="./app.js"></script>
-
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script type="module" src="./app.js"></script>
 </body>
-
 </html>
