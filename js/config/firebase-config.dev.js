@@ -1,13 +1,14 @@
 export const firebaseConfig = {
-  apiKey: "AIzaSyB166r_T5-8aDzDuy8gi8MVSRARovVfH1o",
-  authDomain: "adcs-presenca-jiu-jitsu.firebaseapp.com",
-  projectId: "adcs-presenca-jiu-jitsu",
-  storageBucket: "adcs-presenca-jiu-jitsu.firebasestorage.app",
-  messagingSenderId: "49159692549",
-  appId: "1:49159692549:web:19df22d3a556f0aaaad76c"
+  apiKey: "AIzaSyCOxrdeQDl_6qbYikcS9UbxYkJ06cyAzj4",
+  authDomain: "adcs-presenca-dev.firebaseapp.com",
+  projectId: "adcs-presenca-dev",
+  storageBucket: "adcs-presenca-dev.firebasestorage.app",
+  messagingSenderId: "240917692421",
+  appId: "1:240917692421:web:a983a661bbf49170a95c6c",
+  measurementId: "G-54N52W6HXE"
 };
 
 export const firebaseEnvironment = {
   name: "DEV",
-  projectId: "adcs-presenca-jiu-jitsu"
+  projectId: "adcs-presenca-dev"
 };

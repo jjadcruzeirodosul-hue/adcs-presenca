@@ -2,9 +2,9 @@ const CONFIG_BY_HOSTNAME = {
   "localhost": "./config/firebase-config.dev.js",
   "127.0.0.1": "./config/firebase-config.dev.js",
 
-  "adcs-presenca-jiu-jitsu.web.app":
+  "adcs-presenca-dev.web.app":
     "./config/firebase-config.dev.js",
-  "adcs-presenca-jiu-jitsu.firebaseapp.com":
+  "adcs-presenca-dev.firebaseapp.com":
     "./config/firebase-config.dev.js",
 
   "adcs-presenca-qa.web.app":
@@ -12,9 +12,9 @@ const CONFIG_BY_HOSTNAME = {
   "adcs-presenca-qa.firebaseapp.com":
     "./config/firebase-config.qa.js",
 
-  "adcs-presenca-prod.web.app":
+  "adcs-presenca-jiu-jitsu.web.app":
     "./config/firebase-config.prod.js",
-  "adcs-presenca-prod.firebaseapp.com":
+  "adcs-presenca-jiu-jitsu.firebaseapp.com":
     "./config/firebase-config.prod.js"
 };
 
