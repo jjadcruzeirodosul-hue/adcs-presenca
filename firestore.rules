@@ -14,10 +14,7 @@ service cloud.firestore {
     }
 
     match /presencas/{presencaId} {
-      // Permite verificar uma presença específica.
       allow get: if true;
-
-      // Impede listar todas as presenças publicamente.
       allow list: if false;
 
       allow create: if
@@ -32,6 +29,13 @@ service cloud.firestore {
         request.resource.data.dataHora == request.time;
 
       allow update, delete: if false;
+    }
+
+    match /usuarios/{usuarioId} {
+      allow get: if request.auth != null
+                 && request.auth.uid == usuarioId;
+
+      allow list, create, update, delete: if false;
     }
 
     match /{document=**} {
