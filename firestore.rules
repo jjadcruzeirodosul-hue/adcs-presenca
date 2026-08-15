@@ -3,24 +3,117 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /professores/{professorId} {
-      allow read: if true;
-      allow write: if false;
+    /*
+     * Funções auxiliares de autenticação e autorização.
+     */
+
+    function estaAutenticado() {
+      return request.auth != null;
     }
+
+    function possuiUsuarioProvisionado() {
+      return estaAutenticado()
+        && exists(
+          /databases/$(database)/documents/usuarios/$(request.auth.uid)
+        );
+    }
+
+    function usuarioAtual() {
+      return get(
+        /databases/$(database)/documents/usuarios/$(request.auth.uid)
+      ).data;
+    }
+
+    function usuarioEstaAtivo() {
+      return possuiUsuarioProvisionado()
+        && usuarioAtual().ativo == true;
+    }
+
+    function possuiPerfil(perfil) {
+      return usuarioEstaAtivo()
+        && usuarioAtual().perfis is list
+        && perfil in usuarioAtual().perfis;
+    }
+
+    function possuiAcessoOperacional() {
+      return possuiPerfil("ADMIN")
+        || possuiPerfil("OPERADOR");
+    }
+
+
+    /*
+     * Usuários
+     *
+     * O usuário autenticado pode consultar somente o próprio
+     * documento. A leitura não depende de ativo/perfis porque
+     * esses campos precisam ser carregados para resolver a sessão.
+     */
+
+    match /usuarios/{usuarioId} {
+      allow get: if request.auth != null
+                 && request.auth.uid == usuarioId;
+
+      allow list, create, update, delete: if false;
+    }
+
+
+    /*
+     * Professores
+     *
+     * Leitura disponível somente para usuário provisionado,
+     * ativo e com perfil operacional autorizado.
+     *
+     * Escritas administrativas permanecem bloqueadas na Sprint 3.
+     */
+
+    match /professores/{professorId} {
+      allow read: if possuiAcessoOperacional();
+      allow create, update, delete: if false;
+    }
+
+
+    /*
+     * Alunos
+     *
+     * Leitura disponível somente para usuário provisionado,
+     * ativo e com perfil operacional autorizado.
+     *
+     * Escritas administrativas permanecem bloqueadas na Sprint 3.
+     */
 
     match /alunos/{alunoId} {
-      allow read: if true;
-      allow write: if false;
+      allow read: if possuiAcessoOperacional();
+      allow create, update, delete: if false;
     }
 
-    match /presencas/{presencaId} {
-      // Permite verificar uma presença específica.
-      allow get: if true;
 
-      // Impede listar todas as presenças publicamente.
+    /*
+     * Presenças
+     */
+
+    match /presencas/{presencaId} {
+
+      /*
+       * Leitura individual necessária para a verificação
+       * de presença existente pelo ID determinístico.
+       */
+      allow get: if possuiAcessoOperacional();
+
+      /*
+       * Consultas/listagens permanecem bloqueadas
+       * nesta etapa.
+       */
       allow list: if false;
 
+      /*
+       * Criação permitida somente para usuário operacional
+       * autorizado, preservando as validações do contrato atual.
+       *
+       * Os campos de auditoria por UID não são antecipados
+       * nesta atividade.
+       */
       allow create: if
+        possuiAcessoOperacional() &&
         request.resource.data.alunoId is string &&
         request.resource.data.professorId is string &&
         request.resource.data.matricula is string &&
@@ -31,8 +124,19 @@ service cloud.firestore {
         request.resource.data.origem is string &&
         request.resource.data.dataHora == request.time;
 
+      /*
+       * Alterações e exclusões permanecem bloqueadas.
+       */
       allow update, delete: if false;
     }
+
+
+    /*
+     * Negação padrão.
+     *
+     * Qualquer operação não expressamente autorizada acima
+     * deve ser negada.
+     */
 
     match /{document=**} {
       allow read, write: if false;

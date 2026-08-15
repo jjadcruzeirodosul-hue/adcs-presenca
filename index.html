@@ -19,7 +19,125 @@
 </head>
 
 <body>
-    <div class="app">
+    <section
+        id="painelLogin"
+        class="auth-page"
+        aria-labelledby="tituloLogin"
+    >
+        <div class="auth-card">
+            <header class="auth-card__header">
+                <p class="auth-card__eyebrow">
+                    ADCS Jiu-Jitsu
+                </p>
+
+                <h1
+                    id="tituloLogin"
+                    class="auth-card__title"
+                >
+                    Acesso ao sistema
+                </h1>
+
+                <p class="auth-card__description">
+                    Entre com suas credenciais para acessar o registro
+                    de presença.
+                </p>
+            </header>
+
+            <form
+                id="formLogin"
+                class="auth-form"
+                novalidate
+            >
+                <div class="form-field">
+                    <label
+                        for="emailLogin"
+                        class="form-field__label"
+                    >
+                        E-mail
+                    </label>
+
+                    <input
+                        id="emailLogin"
+                        name="email"
+                        class="form-field__control"
+                        type="email"
+                        inputmode="email"
+                        autocomplete="username"
+                        placeholder="Informe seu e-mail"
+                        required
+                    >
+                </div>
+
+                <div class="form-field">
+                    <label
+                        for="senhaLogin"
+                        class="form-field__label"
+                    >
+                        Senha
+                    </label>
+
+                    <input
+                        id="senhaLogin"
+                        name="senha"
+                        class="form-field__control"
+                        type="password"
+                        autocomplete="current-password"
+                        placeholder="Informe sua senha"
+                        required
+                    >
+                </div>
+
+                <button
+                    id="btnEntrar"
+                    class="button button--primary button--full"
+                    type="submit"
+                >
+                    <span
+                        class="button__icon"
+                        aria-hidden="true"
+                    >
+                        →
+                    </span>
+
+                    <span class="button__text">
+                        Entrar
+                    </span>
+                </button>
+            </form>
+
+            <div
+                id="loadingLogin"
+                class="loading"
+                role="status"
+                aria-live="polite"
+                hidden
+            >
+                <span
+                    class="loading__spinner"
+                    aria-hidden="true"
+                ></span>
+
+                <span id="loadingLoginTexto">
+                    Autenticando...
+                </span>
+            </div>
+
+            <div
+                id="mensagemLogin"
+                class="feedback"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                hidden
+            ></div>
+        </div>
+    </section>
+
+    <div
+        id="appOperacional"
+        class="app"
+        hidden
+    >
         <header class="app-header">
             <div class="app-header__content">
                 <p class="app-header__eyebrow">
