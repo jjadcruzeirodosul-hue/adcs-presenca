@@ -24,112 +24,127 @@
         class="auth-page"
         aria-labelledby="tituloLogin"
     >
-        <div class="auth-card">
-            <header class="auth-card__header">
-                <p class="auth-card__eyebrow">
+        <div class="auth-shell">
+            <div class="auth-brand">
+                <p class="auth-brand__eyebrow">
                     ADCS Jiu-Jitsu
                 </p>
 
-                <h1
-                    id="tituloLogin"
-                    class="auth-card__title"
-                >
-                    Acesso ao sistema
+                <h1 class="auth-brand__title">
+                    ADCS Presença
                 </h1>
 
-                <p class="auth-card__description">
-                    Entre com suas credenciais para acessar o registro
-                    de presença.
+                <p class="auth-brand__description">
+                    Registro seguro e simplificado de presença dos alunos.
                 </p>
-            </header>
-
-            <form
-                id="formLogin"
-                class="auth-form"
-                novalidate
-            >
-                <div class="form-field">
-                    <label
-                        for="emailLogin"
-                        class="form-field__label"
-                    >
-                        E-mail
-                    </label>
-
-                    <input
-                        id="emailLogin"
-                        name="email"
-                        class="form-field__control"
-                        type="email"
-                        inputmode="email"
-                        autocomplete="username"
-                        placeholder="Informe seu e-mail"
-                        required
-                    >
-                </div>
-
-                <div class="form-field">
-                    <label
-                        for="senhaLogin"
-                        class="form-field__label"
-                    >
-                        Senha
-                    </label>
-
-                    <input
-                        id="senhaLogin"
-                        name="senha"
-                        class="form-field__control"
-                        type="password"
-                        autocomplete="current-password"
-                        placeholder="Informe sua senha"
-                        required
-                    >
-                </div>
-
-                <button
-                    id="btnEntrar"
-                    class="button button--primary button--full"
-                    type="submit"
-                >
-                    <span
-                        class="button__icon"
-                        aria-hidden="true"
-                    >
-                        →
-                    </span>
-
-                    <span class="button__text">
-                        Entrar
-                    </span>
-                </button>
-            </form>
-
-            <div
-                id="loadingLogin"
-                class="loading"
-                role="status"
-                aria-live="polite"
-                hidden
-            >
-                <span
-                    class="loading__spinner"
-                    aria-hidden="true"
-                ></span>
-
-                <span id="loadingLoginTexto">
-                    Autenticando...
-                </span>
             </div>
 
-            <div
-                id="mensagemLogin"
-                class="feedback"
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-                hidden
-            ></div>
+            <div class="auth-card">
+                <header class="auth-card__header">
+                    <p class="auth-card__step">
+                        Área restrita
+                    </p>
+
+                    <h2
+                        id="tituloLogin"
+                        class="auth-card__title"
+                    >
+                        Acesso ao sistema
+                    </h2>
+
+                    <p class="auth-card__description">
+                        Entre com suas credenciais para continuar.
+                    </p>
+                </header>
+
+                <form
+                    id="formLogin"
+                    class="auth-form"
+                    novalidate
+                >
+                    <div class="form-field">
+                        <label
+                            for="emailLogin"
+                            class="form-field__label"
+                        >
+                            E-mail
+                        </label>
+
+                        <input
+                            id="emailLogin"
+                            name="email"
+                            class="form-field__control"
+                            type="email"
+                            inputmode="email"
+                            autocomplete="username"
+                            placeholder="Informe seu e-mail"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-field">
+                        <label
+                            for="senhaLogin"
+                            class="form-field__label"
+                        >
+                            Senha
+                        </label>
+
+                        <input
+                            id="senhaLogin"
+                            name="senha"
+                            class="form-field__control"
+                            type="password"
+                            autocomplete="current-password"
+                            placeholder="Informe sua senha"
+                            required
+                        >
+                    </div>
+
+                    <button
+                        id="btnEntrar"
+                        class="button button--primary button--full"
+                        type="submit"
+                    >
+                        <span
+                            class="button__icon"
+                            aria-hidden="true"
+                        >
+                            →
+                        </span>
+
+                        <span class="button__text">
+                            Entrar
+                        </span>
+                    </button>
+                </form>
+
+                <div
+                    id="loadingLogin"
+                    class="loading"
+                    role="status"
+                    aria-live="polite"
+                    hidden
+                >
+                    <span
+                        class="loading__spinner"
+                        aria-hidden="true"
+                    ></span>
+
+                    <span id="loadingLoginTexto">
+                        Autenticando...
+                    </span>
+                </div>
+
+                <div
+                    id="mensagemLogin"
+                    class="feedback"
+                    role="status"
+                    aria-live="polite"
+                    aria-atomic="true"
+                    hidden
+                ></div>
+            </div>
         </div>
     </section>
 
@@ -154,24 +169,108 @@
                 </p>
             </div>
 
-            <div
-                id="statusSistema"
-                class="system-status"
-                role="status"
-                aria-live="polite"
-            >
-                <span
-                    class="system-status__indicator"
-                    aria-hidden="true"
-                ></span>
+            <div class="app-header__session">
+                <div
+                    id="statusSistema"
+                    class="system-status"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <span
+                        class="system-status__indicator"
+                        aria-hidden="true"
+                    ></span>
 
-                <span class="system-status__text">
-                    Sistema disponível
-                </span>
+                    <span class="system-status__text">
+                        Sistema disponível
+                    </span>
+                </div>
+
+                <div
+                    id="usuarioSessao"
+                    class="session-user"
+                    aria-live="polite"
+                >
+                    <div class="session-user__identity">
+                        <span
+                            class="session-user__label"
+                            aria-hidden="true"
+                        >
+                            Usuário
+                        </span>
+
+                        <strong
+                            id="usuarioSessaoNome"
+                            class="session-user__name"
+                        >
+                            Usuário autenticado
+                        </strong>
+
+                        <span
+                            id="usuarioSessaoPerfil"
+                            class="session-user__profile"
+                        >
+                            Perfil operacional
+                        </span>
+                    </div>
+
+                    <button
+                        id="btnLogout"
+                        class="button button--secondary session-user__logout"
+                        type="button"
+                    >
+                        <span
+                            class="button__icon"
+                            aria-hidden="true"
+                        >
+                            ↪
+                        </span>
+
+                        <span class="button__text">
+                            Sair
+                        </span>
+                    </button>
+                </div>
             </div>
         </header>
 
         <main class="app-main">
+            <section
+                id="avisoInatividade"
+                class="session-warning"
+                role="alert"
+                aria-live="assertive"
+                aria-atomic="true"
+                hidden
+            >
+                <div class="session-warning__content">
+                    <span
+                        class="session-warning__icon"
+                        aria-hidden="true"
+                    >
+                        ⏱
+                    </span>
+
+                    <div>
+                        <p class="session-warning__title">
+                            Sessão prestes a expirar
+                        </p>
+
+                        <p class="session-warning__description">
+                            Sua sessão será encerrada por inatividade.
+                            Interaja com a aplicação para continuar conectado.
+                        </p>
+                    </div>
+                </div>
+
+                <p
+                    id="avisoInatividadeTempo"
+                    class="session-warning__time"
+                >
+                    Sessão próxima da expiração.
+                </p>
+            </section>
+
             <section
                 class="attendance-card"
                 aria-labelledby="tituloRegistro"
