@@ -5,7 +5,7 @@
  * ------------------------------------------------------------
  * Bootstrap principal da aplicação.
  * Responsável por coordenar autenticação, autorização,
- * sessão, inatividade e inicialização dos módulos operacionais.
+ * sessão, inatividade e inicialização dos módulos da aplicação.
  * Conforme DEVSTD-001.
  * ============================================================
  */
@@ -49,6 +49,12 @@ import {
 } from "./js/auth/activity-monitor.js";
 
 import {
+    atualizarAcessoAdministrativo,
+    initAdminShell,
+    resetAdminShell
+} from "./js/admin/admin-shell.js";
+
+import {
     initUI,
     limparFeedback,
     mostrarMensagem
@@ -90,6 +96,12 @@ function iniciarAplicacao() {
             }
         });
 
+        initAdminShell({
+            onAntesEntrarAdministracao: async () => {
+                await pararScanner();
+            }
+        });
+
         mostrarPainelLogin();
 
         inicializarSessao((sessao) => {
@@ -106,7 +118,7 @@ function iniciarAplicacao() {
 
 /**
  * Processa o estado resolvido da sessão e aplica o RBAC antes
- * da inicialização dos módulos operacionais.
+ * da inicialização dos módulos da aplicação.
  *
  * @param {{
  *     usuarioAutenticado: Object | null,
@@ -161,6 +173,9 @@ async function processarEstadoSessao(sessao) {
         });
 
         definirLogoutEmAndamento(false);
+
+        atualizarAcessoAdministrativo();
+
         mostrarAplicacaoOperacional();
 
         await inicializarModulosOperacionais();
@@ -328,8 +343,11 @@ async function executarLogoutInatividade() {
 function tratarSessaoNaoAutenticada() {
     encerrarControleSessao();
 
+    resetAdminShell();
+
     limparUsuarioSessao();
     definirLogoutEmAndamento(false);
+
     mostrarPainelLogin();
 
     mostrarMensagemPainelLogin(
@@ -351,6 +369,8 @@ function tratarSessaoNaoAutenticada() {
 function tratarUsuarioSistemaAusente(usuarioAutenticado) {
     encerrarControleSessao();
 
+    resetAdminShell();
+
     limparUsuarioSessao();
     mostrarPainelLogin();
 
@@ -362,7 +382,9 @@ function tratarUsuarioSistemaAusente(usuarioAutenticado) {
     console.warn(
         "[App] Documento do usuário não localizado.",
         {
-            uid: usuarioAutenticado?.uid || "não informado"
+            uid:
+                usuarioAutenticado?.uid ||
+                "não informado"
         }
     );
 }
@@ -375,6 +397,8 @@ function tratarUsuarioSistemaAusente(usuarioAutenticado) {
 function tratarUsuarioInativo(usuarioAutenticado) {
     encerrarControleSessao();
 
+    resetAdminShell();
+
     limparUsuarioSessao();
     mostrarPainelLogin();
 
@@ -386,7 +410,9 @@ function tratarUsuarioInativo(usuarioAutenticado) {
     console.warn(
         "[App] Usuário operacionalmente inativo.",
         {
-            uid: usuarioAutenticado?.uid || "não informado"
+            uid:
+                usuarioAutenticado?.uid ||
+                "não informado"
         }
     );
 }
@@ -399,6 +425,8 @@ function tratarUsuarioInativo(usuarioAutenticado) {
 function tratarUsuarioNaoAutorizado(usuarioAutenticado) {
     encerrarControleSessao();
 
+    resetAdminShell();
+
     limparUsuarioSessao();
     mostrarPainelLogin();
 
@@ -410,7 +438,9 @@ function tratarUsuarioNaoAutorizado(usuarioAutenticado) {
     console.warn(
         "[App] Usuário sem perfil operacional autorizado.",
         {
-            uid: usuarioAutenticado?.uid || "não informado"
+            uid:
+                usuarioAutenticado?.uid ||
+                "não informado"
         }
     );
 }
@@ -428,6 +458,9 @@ function tratarErroInicializacao(erro) {
 
     try {
         encerrarControleSessao();
+
+        resetAdminShell();
+
         limparUsuarioSessao();
         mostrarPainelLogin();
 

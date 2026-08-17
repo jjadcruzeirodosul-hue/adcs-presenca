@@ -874,28 +874,75 @@ video {
 }
 
 @media (max-width: 39.9375rem) {
+    .app-header__session {
+        gap: var(--space-2);
+    }
+
     .session-user {
-        align-items: stretch;
-        flex-direction: column;
+        padding: var(--space-2) var(--space-3);
+        align-items: center;
+        flex-direction: row;
+        gap: var(--space-2);
+    }
+
+    .session-user__identity {
+        flex: 1;
+        gap: 0;
+    }
+
+    .session-user__label {
+        display: none;
+    }
+
+    .session-user__name {
+        font-size: var(--font-size-xs);
+    }
+
+    .session-user__profile {
+        margin-top: 0.125rem;
+        font-size: var(--font-size-xs);
     }
 
     .session-user__logout {
-        width: 100%;
+        width: auto;
+        min-height: 2.5rem;
+        padding: var(--space-2) var(--space-3);
+        flex-shrink: 0;
     }
 }
 
-@media (max-width: 24rem) {
-    .auth-page {
+@media (max-width: 30rem) {
+    .app-navigation {
+        width: min(100% - 1rem, var(--content-width));
+        grid-template-columns: 1fr;
+    }
+
+    .app-navigation__button {
+        min-height: 2.875rem;
+        padding-inline: var(--space-3);
+    }
+
+    .app-context--administrative {
         padding: var(--space-4);
-    }
-
-    .auth-shell {
-        gap: var(--space-6);
-    }
-
-    .auth-card {
-        padding: var(--space-5);
         border-radius: var(--radius-lg);
+    }
+
+    .app-context__header {
+        gap: var(--space-1);
+    }
+
+    .admin-navigation {
+        gap: var(--space-2);
+        padding: var(--space-2);
+    }
+
+    .admin-navigation__button {
+        min-height: 2.75rem;
+        padding-inline: var(--space-3);
+    }
+
+    .admin-module-placeholder {
+        padding: var(--space-4);
     }
 }
 
@@ -984,6 +1031,275 @@ video {
 
     .result-card {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================================
+   S4-002 — Fundação do Painel Administrativo
+   ============================================================ */
+
+/* Contextos da aplicação autenticada */
+
+.app-context {
+    display: grid;
+    gap: var(--space-5);
+}
+
+.app-context__header {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.app-context__eyebrow {
+    margin: 0;
+    color: var(--color-primary-700);
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.app-context__title {
+    margin: 0;
+    color: var(--color-neutral-950);
+    font-size: var(--font-size-xl);
+    line-height: var(--line-height-tight);
+}
+
+.app-context__description {
+    max-width: 38rem;
+    margin: 0;
+    color: var(--color-neutral-600);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-relaxed);
+}
+
+
+/* Navegação entre Operação e Administração */
+
+.app-navigation {
+    display: grid;
+    width: min(100% - 2rem, var(--content-width));
+    margin: 0 auto var(--space-5);
+    padding: var(--space-1);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1);
+    background: rgb(255 255 255 / 72%);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(0.625rem);
+}
+
+.app-navigation__button {
+    display: inline-flex;
+    min-height: 3rem;
+    padding: var(--space-3) var(--space-4);
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    color: var(--color-neutral-700);
+    background: transparent;
+    border-radius: calc(var(--radius-lg) - var(--space-1));
+    font-weight: 800;
+    transition:
+        color var(--transition-fast),
+        background-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.app-navigation__button:hover:not(:disabled) {
+    color: var(--color-primary-800);
+    background: rgb(255 255 255 / 76%);
+}
+
+.app-navigation__button:focus-visible {
+    outline: 0.1875rem solid rgb(11 110 79 / 28%);
+    outline-offset: 0.125rem;
+}
+
+.app-navigation__button:active:not(:disabled) {
+    transform: translateY(0.0625rem);
+}
+
+.app-navigation__button--active {
+    color: var(--color-white);
+    background: var(--color-primary-700);
+    box-shadow: 0 0.375rem 0.875rem rgb(11 110 79 / 18%);
+}
+
+.app-navigation__button--active:hover:not(:disabled) {
+    color: var(--color-white);
+    background: var(--color-primary-800);
+}
+
+
+/* Contexto administrativo */
+
+.app-context--administrative {
+    padding: var(--space-5);
+    background: rgb(255 255 255 / 72%);
+    border: 1px solid rgb(207 215 211 / 78%);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(0.625rem);
+}
+
+
+/* Navegação dos módulos administrativos */
+
+.admin-navigation {
+    display: grid;
+    padding: var(--space-1);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-1);
+    background: var(--color-neutral-100);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-lg);
+}
+
+.admin-navigation__button {
+    min-height: 2.875rem;
+    padding: var(--space-3);
+    color: var(--color-neutral-700);
+    background: transparent;
+    border-radius: calc(var(--radius-lg) - var(--space-1));
+    font-size: var(--font-size-sm);
+    font-weight: 750;
+    transition:
+        color var(--transition-fast),
+        background-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.admin-navigation__button:hover:not(:disabled) {
+    color: var(--color-primary-800);
+    background: rgb(255 255 255 / 72%);
+}
+
+.admin-navigation__button:focus-visible {
+    outline: 0.1875rem solid rgb(11 110 79 / 28%);
+    outline-offset: 0.125rem;
+}
+
+.admin-navigation__button:active:not(:disabled) {
+    transform: translateY(0.0625rem);
+}
+
+.admin-navigation__button--active {
+    color: var(--color-primary-800);
+    background: var(--color-white);
+    box-shadow: var(--shadow-sm);
+}
+
+
+/* Conteúdo administrativo */
+
+.admin-content {
+    display: grid;
+}
+
+.admin-module-placeholder {
+    padding: var(--space-6);
+    background: var(--color-neutral-50);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-lg);
+}
+
+.admin-module-placeholder__eyebrow {
+    margin: 0 0 var(--space-2);
+    color: var(--color-primary-700);
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.admin-module-placeholder__title {
+    margin: 0;
+    color: var(--color-neutral-950);
+    font-size: var(--font-size-lg);
+    line-height: var(--line-height-tight);
+}
+
+.admin-module-placeholder__description {
+    max-width: 38rem;
+    margin: var(--space-3) 0 0;
+    color: var(--color-neutral-600);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-relaxed);
+}
+
+
+/* Responsividade da fundação administrativa */
+
+@media (min-width: 40rem) {
+    .app-context--administrative {
+        padding: var(--space-8);
+    }
+
+    .admin-module-placeholder {
+        padding: var(--space-8);
+    }
+}
+
+@media (max-width: 39.9375rem) {
+    .app-header__session {
+        gap: var(--space-2);
+    }
+
+    .session-user {
+        padding: var(--space-2) var(--space-3);
+        align-items: center;
+        flex-direction: row;
+        gap: var(--space-2);
+    }
+
+    .session-user__identity {
+        flex: 1;
+        gap: 0;
+    }
+
+    .session-user__label {
+        display: none;
+    }
+
+    .session-user__name {
+        font-size: var(--font-size-xs);
+    }
+
+    .session-user__profile {
+        margin-top: 0.125rem;
+        font-size: var(--font-size-xs);
+    }
+
+    .session-user__logout {
+        width: auto;
+        min-height: 2.5rem;
+        padding: var(--space-2) var(--space-3);
+        flex-shrink: 0;
+    }
+}
+
+@media (max-width: 24rem) {
+    .app-navigation {
+        width: min(100% - 1rem, var(--content-width));
+        grid-template-columns: 1fr;
+    }
+
+    .app-navigation__button {
+        min-height: 2.75rem;
+    }
+
+    .app-context--administrative {
+        padding: var(--space-4);
+        border-radius: var(--radius-lg);
+    }
+
+    .admin-module-placeholder {
+        padding: var(--space-4);
     }
 }
 
