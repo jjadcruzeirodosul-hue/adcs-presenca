@@ -4,7 +4,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /*
-     * Funções auxiliares de autenticação e autorização.
+     * ============================================================
+     * Autenticação e autorização
+     * ============================================================
      */
 
     function estaAutenticado() {
@@ -35,6 +37,10 @@ service cloud.firestore {
         && perfil in usuarioAtual().perfis;
     }
 
+    function ehAdmin() {
+      return possuiPerfil("ADMIN");
+    }
+
     function possuiAcessoOperacional() {
       return possuiPerfil("ADMIN")
         || possuiPerfil("OPERADOR");
@@ -42,28 +48,593 @@ service cloud.firestore {
 
 
     /*
-     * Usuários
-     *
-     * O usuário autenticado pode consultar somente o próprio
-     * documento. A leitura não depende de ativo/perfis porque
-     * esses campos precisam ser carregados para resolver a sessão.
+     * ============================================================
+     * Validação de perfis
+     * ============================================================
      */
 
-    match /usuarios/{usuarioId} {
-      allow get: if request.auth != null
-                 && request.auth.uid == usuarioId;
+    function perfisReconhecidosSemDuplicidade(perfis) {
+      return perfis is list
+        && perfis.size() <= 2
+        && perfis.toSet().size() == perfis.size()
+        && perfis.toSet().hasOnly([
+          "ADMIN",
+          "OPERADOR"
+        ]);
+    }
 
-      allow list, create, update, delete: if false;
+    function perfisValidosParaEstado(ativo, perfis) {
+      return perfisReconhecidosSemDuplicidade(perfis)
+        && (
+          ativo == false
+          || perfis.size() >= 1
+        );
     }
 
 
     /*
-     * Professores
+     * ============================================================
+     * Validações de usuarios/{uid}
+     * ============================================================
+     */
+
+    function estadoAdministrativoUsuarioValido(data) {
+      return data.ativo is bool
+        && perfisValidosParaEstado(
+          data.ativo,
+          data.perfis
+        )
+        && data.atualizadoEm is timestamp
+        && data.atualizadoPor is string
+        && data.ultimaOperacaoId is string
+        && data.ultimaOperacaoId.size() > 0;
+    }
+
+    function camposAlteradosUsuarioPermitidos(before, after) {
+      return after
+        .diff(before)
+        .affectedKeys()
+        .hasOnly([
+          "ativo",
+          "perfis",
+          "atualizadoEm",
+          "atualizadoPor",
+          "ultimaOperacaoId"
+        ]);
+    }
+
+    function metadadosForamAtualizados(before, after) {
+	  return after
+		.diff(before)
+		.affectedKeys()
+		.hasAll([
+		  "atualizadoEm",
+		  "ultimaOperacaoId"
+		]);
+	}
+
+    function houveAlteracaoAdministrativaReal(before, after) {
+      return before.ativo != after.ativo
+        || before.perfis != after.perfis;
+    }
+
+    function metadadosAdministrativosValidos(after) {
+      return after.atualizadoEm == request.time
+        && after.atualizadoPor == request.auth.uid
+        && after.ultimaOperacaoId is string
+        && after.ultimaOperacaoId.size() > 0;
+    }
+
+    /*
+     * S4-DEC-003
      *
-     * Leitura disponível somente para usuário provisionado,
-     * ativo e com perfil operacional autorizado.
+     * Se o ADMIN alterar o próprio documento, o estado posterior
+     * deverá continuar:
      *
-     * Escritas administrativas permanecem bloqueadas na Sprint 3.
+     * ativo == true
+     * +
+     * perfil ADMIN presente
+     */
+    function autoprotecaoAdminValida(usuarioId, after) {
+      return usuarioId != request.auth.uid
+        || (
+          after.ativo == true
+          && "ADMIN" in after.perfis
+        );
+    }
+
+    function alteracaoAdministrativaUsuarioBaseValida(
+      usuarioId,
+      before,
+      after
+    ) {
+      return ehAdmin()
+        && estadoAdministrativoUsuarioValido(after)
+        && camposAlteradosUsuarioPermitidos(
+          before,
+          after
+        )
+        && metadadosForamAtualizados(
+          before,
+          after
+        )
+        && houveAlteracaoAdministrativaReal(
+          before,
+          after
+        )
+        && metadadosAdministrativosValidos(after)
+        && autoprotecaoAdminValida(
+          usuarioId,
+          after
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * Caminhos determinísticos
+     * ============================================================
+     */
+
+    function eventoIdUsuario(operacaoId, usuarioId) {
+      return operacaoId
+        + "__USUARIO__"
+        + usuarioId;
+    }
+
+    function caminhoAuditoriaUsuario(
+      operacaoId,
+      usuarioId
+    ) {
+      let eventoId = eventoIdUsuario(
+        operacaoId,
+        usuarioId
+      );
+
+      return /databases/$(database)/documents/auditoriaAdministrativa/$(eventoId);
+    }
+
+    function caminhoUsuario(usuarioId) {
+      return /databases/$(database)/documents/usuarios/$(usuarioId);
+    }
+
+
+    /*
+     * ============================================================
+     * Contrato da auditoria administrativa
+     * ============================================================
+     */
+
+    function auditoriaPossuiCamposObrigatorios(data) {
+      return data.keys().hasAll([
+          "operacaoId",
+          "entidade",
+          "entidadeId",
+          "acao",
+          "autorUid",
+          "ocorridoEm",
+          "before",
+          "after",
+          "camposAlterados",
+          "contexto",
+          "versaoSchema"
+        ])
+        && data.keys().hasOnly([
+          "operacaoId",
+          "entidade",
+          "entidadeId",
+          "acao",
+          "autorUid",
+          "ocorridoEm",
+          "before",
+          "after",
+          "camposAlterados",
+          "contexto",
+          "versaoSchema"
+        ]);
+    }
+
+    function auditoriaPossuiTiposValidos(data) {
+      return data.operacaoId is string
+        && data.operacaoId.size() > 0
+        && data.entidade is string
+        && data.entidadeId is string
+        && data.entidadeId.size() > 0
+        && data.acao is string
+        && data.autorUid is string
+        && data.ocorridoEm is timestamp
+        && (
+          data.before == null
+          || data.before is map
+        )
+        && (
+          data.after == null
+          || data.after is map
+        )
+        && data.camposAlterados is list
+        && (
+          data.contexto == null
+          || data.contexto is map
+        )
+        && data.versaoSchema is int;
+    }
+
+    function auditoriaUsuarioPossuiValoresControlados(data) {
+      return data.entidade == "USUARIO"
+        && data.autorUid == request.auth.uid
+        && data.ocorridoEm == request.time
+        && data.versaoSchema == 1
+        && (
+          data.acao == "USUARIO_ATUALIZADO"
+          || data.acao == "USUARIO_ATIVADO"
+          || data.acao == "USUARIO_DESATIVADO"
+        );
+    }
+
+    function eventoIdUsuarioValido(eventoId, data) {
+      return eventoId
+        == eventoIdUsuario(
+          data.operacaoId,
+          data.entidadeId
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * Coerência before / after / camposAlterados
+     * ============================================================
+     */
+
+    function somenteAtivoAlterado(before, after) {
+      return before.ativo != after.ativo
+        && before.perfis == after.perfis;
+    }
+
+    function somentePerfisAlterados(before, after) {
+      return before.ativo == after.ativo
+        && before.perfis != after.perfis;
+    }
+
+    function ativoEPerfisAlterados(before, after) {
+      return before.ativo != after.ativo
+        && before.perfis != after.perfis;
+    }
+
+    function auditoriaSomenteAtivoValida(
+      evento,
+      before,
+      after
+    ) {
+      return evento.camposAlterados.size() == 1
+        && evento.camposAlterados[0] == "ativo"
+        && evento.before is map
+        && evento.after is map
+        && evento.before.keys().hasOnly([
+          "ativo"
+        ])
+        && evento.before.keys().hasAll([
+          "ativo"
+        ])
+        && evento.after.keys().hasOnly([
+          "ativo"
+        ])
+        && evento.after.keys().hasAll([
+          "ativo"
+        ])
+        && evento.before.ativo == before.ativo
+        && evento.after.ativo == after.ativo
+        && (
+          (
+            before.ativo == false
+            && after.ativo == true
+            && evento.acao == "USUARIO_ATIVADO"
+          )
+          ||
+          (
+            before.ativo == true
+            && after.ativo == false
+            && evento.acao == "USUARIO_DESATIVADO"
+          )
+        );
+    }
+
+    function auditoriaSomentePerfisValida(
+      evento,
+      before,
+      after
+    ) {
+      return evento.camposAlterados.size() == 1
+        && evento.camposAlterados[0] == "perfis"
+        && evento.before is map
+        && evento.after is map
+        && evento.before.keys().hasOnly([
+          "perfis"
+        ])
+        && evento.before.keys().hasAll([
+          "perfis"
+        ])
+        && evento.after.keys().hasOnly([
+          "perfis"
+        ])
+        && evento.after.keys().hasAll([
+          "perfis"
+        ])
+        && evento.before.perfis == before.perfis
+        && evento.after.perfis == after.perfis
+        && evento.acao == "USUARIO_ATUALIZADO";
+    }
+
+    function auditoriaAtivoEPerfisValida(
+      evento,
+      before,
+      after
+    ) {
+      return evento.camposAlterados.size() == 2
+        && evento.camposAlterados.toSet().hasOnly([
+          "ativo",
+          "perfis"
+        ])
+        && evento.camposAlterados.toSet().hasAll([
+          "ativo",
+          "perfis"
+        ])
+        && evento.before is map
+        && evento.after is map
+        && evento.before.keys().hasOnly([
+          "ativo",
+          "perfis"
+        ])
+        && evento.before.keys().hasAll([
+          "ativo",
+          "perfis"
+        ])
+        && evento.after.keys().hasOnly([
+          "ativo",
+          "perfis"
+        ])
+        && evento.after.keys().hasAll([
+          "ativo",
+          "perfis"
+        ])
+        && evento.before.ativo == before.ativo
+        && evento.before.perfis == before.perfis
+        && evento.after.ativo == after.ativo
+        && evento.after.perfis == after.perfis
+        && evento.acao == "USUARIO_ATUALIZADO";
+    }
+
+    function auditoriaCoerenteComAlteracao(
+      evento,
+      before,
+      after
+    ) {
+      return (
+          somenteAtivoAlterado(
+            before,
+            after
+          )
+          && auditoriaSomenteAtivoValida(
+            evento,
+            before,
+            after
+          )
+        )
+        ||
+        (
+          somentePerfisAlterados(
+            before,
+            after
+          )
+          && auditoriaSomentePerfisValida(
+            evento,
+            before,
+            after
+          )
+        )
+        ||
+        (
+          ativoEPerfisAlterados(
+            before,
+            after
+          )
+          && auditoriaAtivoEPerfisValida(
+            evento,
+            before,
+            after
+          )
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * Validação cruzada:
+     * usuario UPDATE → auditoria CREATE
+     * ============================================================
+     */
+
+    function auditoriaCorrespondenteExisteDepois(
+      usuarioId,
+      before,
+      after
+    ) {
+      let caminho = caminhoAuditoriaUsuario(
+        after.ultimaOperacaoId,
+        usuarioId
+      );
+
+      return !exists(caminho)
+        && existsAfter(caminho)
+        && auditoriaPossuiCamposObrigatorios(
+          getAfter(caminho).data
+        )
+        && auditoriaPossuiTiposValidos(
+          getAfter(caminho).data
+        )
+        && auditoriaUsuarioPossuiValoresControlados(
+          getAfter(caminho).data
+        )
+        && getAfter(caminho).data.operacaoId
+          == after.ultimaOperacaoId
+        && getAfter(caminho).data.entidadeId
+          == usuarioId
+        && auditoriaCoerenteComAlteracao(
+          getAfter(caminho).data,
+          before,
+          after
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * Validação cruzada:
+     * auditoria CREATE → usuario UPDATE
+     * ============================================================
+     */
+
+    function usuarioCorrespondenteFoiAlterado(
+      evento
+    ) {
+      let caminho = caminhoUsuario(
+        evento.entidadeId
+      );
+
+      return exists(caminho)
+        && existsAfter(caminho)
+        && alteracaoAdministrativaUsuarioBaseValida(
+          evento.entidadeId,
+          get(caminho).data,
+          getAfter(caminho).data
+        )
+        && getAfter(caminho).data.ultimaOperacaoId
+          == evento.operacaoId
+        && auditoriaCoerenteComAlteracao(
+          evento,
+          get(caminho).data,
+          getAfter(caminho).data
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * Usuários
+     * ============================================================
+     */
+
+    match /usuarios/{usuarioId} {
+
+      /*
+       * Leitura própria preservada da Sprint 3.
+       * ADMIN ativo pode consultar qualquer usuário.
+       */
+      allow get: if
+        (
+          request.auth != null
+          && request.auth.uid == usuarioId
+        )
+        || ehAdmin();
+
+      /*
+       * Listagem administrativa exclusiva do ADMIN ativo.
+       */
+      allow list: if ehAdmin();
+
+      /*
+       * S4-003-FB-04B
+       *
+       * UPDATE administrativo permitido apenas quando:
+       *
+       * - autor é ADMIN ativo;
+       * - somente campos previstos são alterados;
+       * - existe alteração real de ativo/perfis;
+       * - metadados administrativos são válidos;
+       * - autoproteção S4-DEC-003 é respeitada;
+       * - auditoria correspondente é criada no mesmo commit.
+       */
+      allow update: if
+        alteracaoAdministrativaUsuarioBaseValida(
+          usuarioId,
+          resource.data,
+          request.resource.data
+        )
+        && auditoriaCorrespondenteExisteDepois(
+          usuarioId,
+          resource.data,
+          request.resource.data
+        );
+
+      /*
+       * CREATE será tratado separadamente na FB-05.
+       */
+      allow create: if false;
+
+      /*
+       * Exclusão física regular permanece proibida.
+       */
+      allow delete: if false;
+    }
+
+
+    /*
+     * ============================================================
+     * Auditoria Administrativa
+     * ============================================================
+     */
+
+    match /auditoriaAdministrativa/{eventoId} {
+
+      /*
+       * S4-003-FB-04B
+       *
+       * CREATE permitido somente quando:
+       *
+       * - autor é ADMIN ativo;
+       * - contrato físico do evento é válido;
+       * - eventoId é determinístico;
+       * - valores controlados são válidos;
+       * - usuarios/{uid} correspondente é atualizado
+       *   na mesma operação atômica;
+       * - before/after/camposAlterados refletem a
+       *   alteração real executada.
+       */
+      allow create: if
+        ehAdmin()
+        && auditoriaPossuiCamposObrigatorios(
+          request.resource.data
+        )
+        && auditoriaPossuiTiposValidos(
+          request.resource.data
+        )
+        && auditoriaUsuarioPossuiValoresControlados(
+          request.resource.data
+        )
+        && eventoIdUsuarioValido(
+          eventoId,
+          request.resource.data
+        )
+        && usuarioCorrespondenteFoiAlterado(
+          request.resource.data
+        );
+
+      /*
+       * Nesta etapa a auditoria não é exposta para leitura.
+       */
+      allow get, list: if false;
+
+      /*
+       * Append-only.
+       */
+      allow update, delete: if false;
+    }
+
+
+    /*
+     * ============================================================
+     * Professores — baseline Sprint 3 preservada
+     * ============================================================
      */
 
     match /professores/{professorId} {
@@ -73,12 +644,9 @@ service cloud.firestore {
 
 
     /*
-     * Alunos
-     *
-     * Leitura disponível somente para usuário provisionado,
-     * ativo e com perfil operacional autorizado.
-     *
-     * Escritas administrativas permanecem bloqueadas na Sprint 3.
+     * ============================================================
+     * Alunos — baseline Sprint 3 preservada
+     * ============================================================
      */
 
     match /alunos/{alunoId} {
@@ -88,54 +656,37 @@ service cloud.firestore {
 
 
     /*
-     * Presenças
+     * ============================================================
+     * Presenças — baseline Sprint 3 preservada
+     * ============================================================
      */
 
     match /presencas/{presencaId} {
 
-      /*
-       * Leitura individual necessária para a verificação
-       * de presença existente pelo ID determinístico.
-       */
       allow get: if possuiAcessoOperacional();
 
-      /*
-       * Consultas/listagens permanecem bloqueadas
-       * nesta etapa.
-       */
       allow list: if false;
 
-      /*
-       * Criação permitida somente para usuário operacional
-       * autorizado, preservando as validações do contrato atual.
-       *
-       * Os campos de auditoria por UID não são antecipados
-       * nesta atividade.
-       */
       allow create: if
-        possuiAcessoOperacional() &&
-        request.resource.data.alunoId is string &&
-        request.resource.data.professorId is string &&
-        request.resource.data.matricula is string &&
-        request.resource.data.nomeAluno is string &&
-        request.resource.data.nomeProfessor is string &&
-        request.resource.data.faixa is string &&
-        request.resource.data.dia is string &&
-        request.resource.data.origem is string &&
-        request.resource.data.dataHora == request.time;
+        possuiAcessoOperacional()
+        && request.resource.data.alunoId is string
+        && request.resource.data.professorId is string
+        && request.resource.data.matricula is string
+        && request.resource.data.nomeAluno is string
+        && request.resource.data.nomeProfessor is string
+        && request.resource.data.faixa is string
+        && request.resource.data.dia is string
+        && request.resource.data.origem is string
+        && request.resource.data.dataHora == request.time;
 
-      /*
-       * Alterações e exclusões permanecem bloqueadas.
-       */
       allow update, delete: if false;
     }
 
 
     /*
-     * Negação padrão.
-     *
-     * Qualquer operação não expressamente autorizada acima
-     * deve ser negada.
+     * ============================================================
+     * Negação padrão
+     * ============================================================
      */
 
     match /{document=**} {
