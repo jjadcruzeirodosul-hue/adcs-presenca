@@ -30,6 +30,7 @@ import {
 
 let moduloInicializado = false;
 let callbackAntesAdministracao = null;
+let callbackDepoisAdministracao = null;
 
 /**
  * Inicializa a fundação administrativa.
@@ -40,7 +41,8 @@ let callbackAntesAdministracao = null;
  */
 export function initAdminShell(
     {
-        onAntesEntrarAdministracao = null
+        onAntesEntrarAdministracao = null,
+        onDepoisEntrarAdministracao = null
     } = {}
 ) {
     if (moduloInicializado) {
@@ -50,6 +52,11 @@ export function initAdminShell(
     callbackAntesAdministracao =
         typeof onAntesEntrarAdministracao === "function"
             ? onAntesEntrarAdministracao
+            : null;
+
+    callbackDepoisAdministracao =
+        typeof onDepoisEntrarAdministracao === "function"
+            ? onDepoisEntrarAdministracao
             : null;
 
     const elementos = obterElementos();
@@ -148,8 +155,8 @@ async function solicitarAreaAdministrativa() {
 	}
 
     try {
-        if (callbackAntesAdministracao) {
-            await callbackAntesAdministracao();
+        if (callbackDepoisAdministracao) {
+            await callbackDepoisAdministracao();
         }
 
         const elementos = obterElementos();
@@ -164,6 +171,10 @@ async function solicitarAreaAdministrativa() {
         atualizarEstadoNavegacaoPrincipal({
             operacaoAtiva: false
         });
+
+		if (callbackDepoisAdministracao) {
+			await callbackDepoisAdministracao();
+		}
 
         console.info(
             "[Admin] Contexto administrativo inicializado com autorização válida."
