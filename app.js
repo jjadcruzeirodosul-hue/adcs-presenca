@@ -55,6 +55,11 @@ import {
 } from "./js/admin/admin-shell.js";
 
 import {
+    carregarUsuariosAdministrativos,
+    initAdminUsuarios
+} from "./js/admin/usuarios/admin-usuarios.js";
+
+import {
     initUI,
     limparFeedback,
     mostrarMensagem
@@ -99,8 +104,14 @@ function iniciarAplicacao() {
         initAdminShell({
             onAntesEntrarAdministracao: async () => {
                 await pararScanner();
+            },
+
+            onDepoisEntrarAdministracao: async () => {
+                await carregarUsuariosAdministrativos();
             }
         });
+
+        initAdminUsuarios();
 
         mostrarPainelLogin();
 

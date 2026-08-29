@@ -680,27 +680,66 @@
                     class="admin-content"
                 >
                     <section
-                        id="painelAdminUsuarios"
-                        class="admin-module-placeholder"
-                        aria-labelledby="tituloAdminUsuarios"
-                    >
-                        <p class="admin-module-placeholder__eyebrow">
-                            Módulo administrativo
-                        </p>
+						id="painelAdminUsuarios"
+						class="admin-module-placeholder"
+						aria-labelledby="tituloAdminUsuarios"
+					>
+						<p class="admin-module-placeholder__eyebrow">
+							Módulo administrativo
+						</p>
 
-                        <h3
-                            id="tituloAdminUsuarios"
-                            class="admin-module-placeholder__title"
-                        >
-                            Gestão de Usuários
-                        </h3>
+						<h3
+							id="tituloAdminUsuarios"
+							class="admin-module-placeholder__title"
+						>
+							Gestão de Usuários
+						</h3>
 
-                        <p class="admin-module-placeholder__description">
-                            Estrutura preparada para a S4-003.
-                            Nenhuma funcionalidade de cadastro ou manutenção
-                            de usuários está disponível nesta entrega.
-                        </p>
-                    </section>
+						<p class="admin-module-placeholder__description">
+							Consulte e administre o estado operacional e os perfis
+							dos usuários autorizados no ADCS Presença.
+						</p>
+
+						<div
+							id="estadoAdminUsuarios"
+							class="feedback"
+							role="status"
+							aria-live="polite"
+							aria-atomic="true"
+							hidden
+						></div>
+
+						<div
+							id="loadingAdminUsuarios"
+							class="loading"
+							role="status"
+							aria-live="polite"
+							hidden
+						>
+							<span
+								class="loading__spinner"
+								aria-hidden="true"
+							></span>
+
+							<span>
+								Carregando usuários...
+							</span>
+						</div>
+
+						<div
+							id="listaAdminUsuarios"
+							class="admin-users-list"
+							aria-label="Usuários cadastrados"
+							hidden
+						></div>
+
+						<section
+							id="editorAdminUsuarios"
+							class="admin-users-editor"
+							aria-label="Edição de usuário"
+							hidden
+						></section>
+					</section>
 
                     <section
                         id="painelAdminAlunos"
