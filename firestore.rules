@@ -240,6 +240,41 @@ service cloud.firestore {
         && after.ultimaOperacaoId.size() > 0;
     }
 
+    function metadadosAlunoForamAtualizados(before, after) {
+      return after
+        .diff(before)
+        .affectedKeys()
+        .hasAll([
+          "atualizadoEm",
+          "ultimaOperacaoId"
+        ]);
+    }
+
+    function alteracaoAdministrativaAlunoBaseValida(
+      before,
+      after
+    ) {
+      return ehAdmin()
+        && estadoAlunoValido(after)
+        && camposAlteradosAlunoPermitidos(
+          before,
+          after
+        )
+        && matriculaAlunoPermaneceImutavel(
+          before,
+          after
+        )
+        && camposAdministraveisAlunoAlterados(
+          before,
+          after
+        )
+        && metadadosAlunoForamAtualizados(
+          before,
+          after
+        )
+        && metadadosAlunoValidos(after);
+    }
+
 
     /*
      * ============================================================
