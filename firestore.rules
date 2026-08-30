@@ -169,6 +169,77 @@ service cloud.firestore {
         );
     }
 
+	/*
+     * ============================================================
+     * Validações de alunos/{alunoId}
+     * ============================================================
+     */
+
+    function estadoAlunoValido(data) {
+      return data.keys().hasAll([
+          "nome",
+          "faixa",
+          "matricula",
+          "ativo",
+          "atualizadoEm",
+          "atualizadoPor",
+          "ultimaOperacaoId"
+        ])
+        && data.keys().hasOnly([
+          "nome",
+          "faixa",
+          "matricula",
+          "ativo",
+          "atualizadoEm",
+          "atualizadoPor",
+          "ultimaOperacaoId"
+        ])
+        && data.nome is string
+        && data.nome.size() > 0
+        && data.faixa is string
+        && data.faixa.size() > 0
+        && data.matricula is string
+        && data.matricula.matches('^[0-9]{6}$')
+        && data.matricula != "000000"
+        && data.ativo is bool
+        && data.atualizadoEm is timestamp
+        && data.atualizadoPor is string
+        && data.atualizadoPor.size() > 0
+        && data.ultimaOperacaoId is string
+        && data.ultimaOperacaoId.size() > 0;
+    }
+
+    function camposAdministraveisAlunoAlterados(before, after) {
+      return before.nome != after.nome
+        || before.faixa != after.faixa
+        || before.ativo != after.ativo;
+    }
+
+    function matriculaAlunoPermaneceImutavel(before, after) {
+      return before.matricula == after.matricula;
+    }
+
+    function camposAlteradosAlunoPermitidos(before, after) {
+      return after
+        .diff(before)
+        .affectedKeys()
+        .hasOnly([
+          "nome",
+          "faixa",
+          "ativo",
+          "atualizadoEm",
+          "atualizadoPor",
+          "ultimaOperacaoId"
+        ]);
+    }
+
+    function metadadosAlunoValidos(after) {
+      return after.atualizadoEm == request.time
+        && after.atualizadoPor == request.auth.uid
+        && after.ultimaOperacaoId is string
+        && after.ultimaOperacaoId.size() > 0;
+    }
+
 
     /*
      * ============================================================
