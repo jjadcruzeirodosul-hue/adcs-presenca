@@ -275,6 +275,68 @@ service cloud.firestore {
     }
 
 
+	/*
+	 * ============================================================
+	 * Validações de contadores/matriculasAlunos
+	 * ============================================================
+	 *
+	 * S4-DEC-005
+	 *
+	 * O contador pode existir em dois estados físicos:
+	 *
+	 * 1. legado da Sprint 4:
+	 *    sem ultimoAlunoId;
+	 *
+	 * 2. contrato S4-004:
+	 *    com ultimoAlunoId.
+	 *
+	 * Não haverá backfill obrigatório.
+	 */
+
+	function contadorMatriculasAlunosPossuiCamposBase(data) {
+	  return data.keys().hasAll([
+		  "ultimoNumeroEmitido",
+		  "atualizadoEm",
+		  "atualizadoPor",
+		  "ultimaOperacaoId",
+		  "versaoSchema"
+		])
+		&& data.keys().hasOnly([
+		  "ultimoNumeroEmitido",
+		  "atualizadoEm",
+		  "atualizadoPor",
+		  "ultimaOperacaoId",
+		  "ultimoAlunoId",
+		  "versaoSchema"
+		]);
+	}
+
+	function contadorMatriculasAlunosPossuiTiposBaseValidos(data) {
+	  return data.ultimoNumeroEmitido is int
+		&& data.ultimoNumeroEmitido >= 0
+		&& data.ultimoNumeroEmitido <= 999999
+		&& data.atualizadoEm is timestamp
+		&& data.atualizadoPor is string
+		&& data.ultimaOperacaoId is string
+		&& data.versaoSchema is int
+		&& data.versaoSchema == 1;
+	}
+
+	function contadorMatriculasAlunosPossuiUltimoAlunoIdValido(data) {
+	  return !("ultimoAlunoId" in data)
+		|| (
+		  data.ultimoAlunoId is string
+		  && data.ultimoAlunoId.size() > 0
+		);
+	}
+
+	function estadoContadorMatriculasAlunosValido(data) {
+	  return contadorMatriculasAlunosPossuiCamposBase(data)
+		&& contadorMatriculasAlunosPossuiTiposBaseValidos(data)
+		&& contadorMatriculasAlunosPossuiUltimoAlunoIdValido(data);
+	}
+
+
     /*
      * ============================================================
      * Caminhos determinísticos
@@ -1016,6 +1078,36 @@ service cloud.firestore {
       allow read: if possuiAcessoOperacional();
       allow create, update, delete: if false;
     }
+
+
+	/*
+	 * ============================================================
+	 * Contador de matrículas de alunos — S4-DEC-005
+	 * ============================================================
+	 */
+
+	match /contadores/matriculasAlunos {
+
+	  /*
+	   * Consulta necessária ao fluxo administrativo de emissão
+	   * de matrícula.
+	   */
+	  allow get: if ehAdmin();
+
+	  /*
+	   * O contador é documento singleton e não possui listagem.
+	   */
+	  allow list: if false;
+
+	  /*
+	   * FB-04 estabelece apenas o contrato físico.
+	   *
+	   * CREATE e DELETE permanecem proibidos.
+	   * UPDATE será liberado somente junto da criação
+	   * transacional de aluno nos FB-05/FB-06.
+	   */
+	  allow create, update, delete: if false;
+	}
 
 
     /*
