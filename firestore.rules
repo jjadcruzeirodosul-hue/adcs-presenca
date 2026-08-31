@@ -353,22 +353,35 @@ service cloud.firestore {
 	}
 
 	function contadorMatriculasAlunosAtualizadoValido(before, after) {
-	  return estadoContadorMatriculasAlunosValido(after)
+	  return estadoContadorMatriculasAlunosValido(before)
+		&& estadoContadorMatriculasAlunosValido(after)
+		&& after.ultimoNumeroEmitido
+		  == before.ultimoNumeroEmitido + 1
+		&& after.ultimoNumeroEmitido <= 999999
 		&& "ultimoAlunoId" in after
 		&& after.ultimoAlunoId is string
 		&& after.ultimoAlunoId.size() > 0
 		&& after.atualizadoEm == request.time
 		&& after.atualizadoPor == request.auth.uid
 		&& after.ultimaOperacaoId is string
-		&& after.ultimaOperacaoId.size() > 0;
+		&& after.ultimaOperacaoId.size() > 0
+		&& after.versaoSchema == before.versaoSchema;
 	}
 
 	function alunoReferenciadoPeloContadorCriadoDepois(after) {
 	  let caminho =
 		/databases/$(database)/documents/alunos/$(after.ultimoAlunoId);
 
+	  let aluno = getAfter(caminho).data;
+
 	  return !exists(caminho)
-		&& existsAfter(caminho);
+		&& existsAfter(caminho)
+		&& aluno.ultimaOperacaoId == after.ultimaOperacaoId
+		&& aluno.atualizadoPor == request.auth.uid
+		&& aluno.atualizadoEm == request.time
+		&& aluno.matricula.matches('^[0-9]{6}$')
+		&& aluno.matricula != "000000"
+		&& int(aluno.matricula) == after.ultimoNumeroEmitido;
 	}
 
 	function atualizacaoContadorParaCriacaoAlunoValida(before, after) {
@@ -515,17 +528,18 @@ service cloud.firestore {
         );
     }
 
-    function auditoriaAlunoPossuiValoresControlados(data) {
-      return data.entidade == "ALUNO"
-        && data.autorUid == request.auth.uid
-        && data.ocorridoEm == request.time
-        && data.versaoSchema == 1
-        && (
-          data.acao == "ALUNO_ATUALIZADO"
-          || data.acao == "ALUNO_ATIVADO"
-          || data.acao == "ALUNO_DESATIVADO"
-        );
-    }
+	function auditoriaAlunoPossuiValoresControlados(data) {
+	  return data.entidade == "ALUNO"
+		&& data.autorUid == request.auth.uid
+		&& data.ocorridoEm == request.time
+		&& data.versaoSchema == 1
+		&& (
+		  data.acao == "ALUNO_CRIADO"
+		  || data.acao == "ALUNO_ATUALIZADO"
+		  || data.acao == "ALUNO_ATIVADO"
+		  || data.acao == "ALUNO_DESATIVADO"
+		);
+	}
 
     function eventoIdAlunoValido(eventoId, data) {
       return eventoId
@@ -949,6 +963,32 @@ service cloud.firestore {
 		);
 	}
 
+	function auditoriaAlunoCriadoCorrespondenteExisteDepois(
+	  alunoId,
+	  aluno
+	) {
+	  let caminho =
+		caminhoAuditoriaAluno(
+		  aluno.ultimaOperacaoId,
+		  alunoId
+		);
+
+	  let evento = getAfter(caminho).data;
+
+	  return !exists(caminho)
+		&& existsAfter(caminho)
+		&& auditoriaPossuiCamposObrigatorios(evento)
+		&& auditoriaPossuiTiposValidos(evento)
+		&& auditoriaAlunoPossuiValoresControlados(evento)
+		&& evento.acao == "ALUNO_CRIADO"
+		&& evento.operacaoId == aluno.ultimaOperacaoId
+		&& evento.entidadeId == alunoId
+		&& evento.autorUid == request.auth.uid
+		&& evento.ocorridoEm == request.time
+		&& evento.before == null
+		&& evento.after is map;
+	}
+
 
 	/*
 	 * ============================================================
@@ -956,6 +996,24 @@ service cloud.firestore {
 	 * auditoria CREATE → aluno UPDATE
 	 * ============================================================
 	 */
+
+	function auditoriaCriacaoAlunoValida(evento) {
+	  let caminho = caminhoAluno(evento.entidadeId);
+	  let aluno = getAfter(caminho).data;
+	  let contador =
+		getAfter(caminhoContadorMatriculasAlunos()).data;
+
+	  return evento.acao == "ALUNO_CRIADO"
+		&& !exists(caminho)
+		&& existsAfter(caminho)
+		&& aluno.ultimaOperacaoId == evento.operacaoId
+		&& aluno.atualizadoPor == request.auth.uid
+		&& aluno.atualizadoEm == request.time
+		&& contador.ultimaOperacaoId == evento.operacaoId
+		&& contador.ultimoAlunoId == evento.entidadeId
+		&& evento.before == null
+		&& evento.after is map;
+	}
 
 	function alunoCorrespondenteAlteradoValido(
 	  caminho,
@@ -970,12 +1028,20 @@ service cloud.firestore {
 		  == evento.operacaoId;
 	}
 
-	function alunoCorrespondenteFoiAlterado(
-	  evento
-	) {
-	  let caminho = caminhoAluno(
-		evento.entidadeId
-	  );
+	function alunoCorrespondenteFoiAlterado(evento) {
+	  return evento.acao == "ALUNO_CRIADO"
+		? auditoriaCriacaoAlunoValida(evento)
+		: (
+			evento.acao == "ALUNO_ATUALIZADO"
+			|| evento.acao == "ALUNO_ATIVADO"
+			|| evento.acao == "ALUNO_DESATIVADO"
+		  )
+		  ? alunoCorrespondenteAtualizadoValido(evento)
+		  : false;
+	}
+
+	function alunoCorrespondenteAtualizadoValido(evento) {
+	  let caminho = caminhoAluno(evento.entidadeId);
 
 	  return exists(caminho)
 		&& existsAfter(caminho)
@@ -1200,7 +1266,11 @@ service cloud.firestore {
 	  criacaoAdministrativaAlunoBaseValida(
 		request.resource.data
 	  )
-	  && contadorMatriculasAlunosFoiAtualizado();
+	  && contadorMatriculasAlunosFoiAtualizado()
+	  && auditoriaAlunoCriadoCorrespondenteExisteDepois(
+		alunoId,
+		request.resource.data
+	  );
 
 	allow delete: if false;
     }
