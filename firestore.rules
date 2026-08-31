@@ -274,6 +274,12 @@ service cloud.firestore {
         && metadadosAlunoValidos(after);
     }
 
+	function criacaoAdministrativaAlunoBaseValida(after) {
+	  return ehAdmin()
+		&& estadoAlunoValido(after)
+		&& after.ativo == true
+		&& metadadosAlunoValidos(after);
+	}
 
 	/*
 	 * ============================================================
@@ -336,6 +342,43 @@ service cloud.firestore {
 		&& contadorMatriculasAlunosPossuiUltimoAlunoIdValido(data);
 	}
 
+	function contadorMatriculasAlunosFoiAtualizado() {
+	  let caminho = caminhoContadorMatriculasAlunos();
+
+	  return exists(caminho)
+		&& existsAfter(caminho)
+		&& getAfter(caminho).data.diff(
+			 get(caminho).data
+		   ).affectedKeys().size() > 0;
+	}
+
+	function contadorMatriculasAlunosAtualizadoValido(before, after) {
+	  return estadoContadorMatriculasAlunosValido(after)
+		&& "ultimoAlunoId" in after
+		&& after.ultimoAlunoId is string
+		&& after.ultimoAlunoId.size() > 0
+		&& after.atualizadoEm == request.time
+		&& after.atualizadoPor == request.auth.uid
+		&& after.ultimaOperacaoId is string
+		&& after.ultimaOperacaoId.size() > 0;
+	}
+
+	function alunoReferenciadoPeloContadorCriadoDepois(after) {
+	  let caminho =
+		/databases/$(database)/documents/alunos/$(after.ultimoAlunoId);
+
+	  return !exists(caminho)
+		&& existsAfter(caminho);
+	}
+
+	function atualizacaoContadorParaCriacaoAlunoValida(before, after) {
+	  return ehAdmin()
+		&& contadorMatriculasAlunosAtualizadoValido(
+		  before,
+		  after
+		)
+		&& alunoReferenciadoPeloContadorCriadoDepois(after);
+	}
 
     /*
      * ============================================================
@@ -364,6 +407,10 @@ service cloud.firestore {
     function caminhoUsuario(usuarioId) {
       return /databases/$(database)/documents/usuarios/$(usuarioId);
     }
+
+	function caminhoContadorMatriculasAlunos() {
+	  return /databases/$(database)/documents/contadores/matriculasAlunos;
+	}
 
     function eventoIdAluno(operacaoId, alunoId) {
       return operacaoId
@@ -1061,10 +1108,21 @@ service cloud.firestore {
        */
       allow get, list: if false;
 
-      /*
-       * Append-only.
-       */
-      allow update, delete: if false;
+		/*
+		 * FB-05
+		 *
+		 * UPDATE permitido somente quando o contador participa
+		 * da criação atômica de um novo aluno.
+		 *
+		 * CREATE e DELETE permanecem proibidos.
+		 */
+		allow update: if
+		  atualizacaoContadorParaCriacaoAlunoValida(
+			resource.data,
+			request.resource.data
+		  );
+
+		allow create, delete: if false;
     }
 
 
@@ -1099,14 +1157,21 @@ service cloud.firestore {
 	   */
 	  allow list: if false;
 
-	  /*
-	   * FB-04 estabelece apenas o contrato físico.
-	   *
-	   * CREATE e DELETE permanecem proibidos.
-	   * UPDATE será liberado somente junto da criação
-	   * transacional de aluno nos FB-05/FB-06.
-	   */
-	  allow create, update, delete: if false;
+		/*
+		 * FB-05
+		 *
+		 * UPDATE permitido somente quando o contador participa
+		 * da criação atômica de um novo aluno.
+		 *
+		 * CREATE e DELETE permanecem proibidos.
+		 */
+		allow update: if
+		  atualizacaoContadorParaCriacaoAlunoValida(
+			resource.data,
+			request.resource.data
+		  );
+
+		allow create, delete: if false;
 	}
 
 
@@ -1130,7 +1195,14 @@ service cloud.firestore {
 		resource.data,
 		request.resource.data
 	  );
-      allow create, delete: if false;
+
+	allow create: if
+	  criacaoAdministrativaAlunoBaseValida(
+		request.resource.data
+	  )
+	  && contadorMatriculasAlunosFoiAtualizado();
+
+	allow delete: if false;
     }
 
 
