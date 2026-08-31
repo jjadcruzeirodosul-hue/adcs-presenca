@@ -254,8 +254,7 @@ service cloud.firestore {
       before,
       after
     ) {
-      return ehAdmin()
-        && estadoAlunoValido(after)
+      return estadoAlunoValido(after)
         && camposAlteradosAlunoPermitidos(
           before,
           after
@@ -302,6 +301,28 @@ service cloud.firestore {
 
     function caminhoUsuario(usuarioId) {
       return /databases/$(database)/documents/usuarios/$(usuarioId);
+    }
+
+    function eventoIdAluno(operacaoId, alunoId) {
+      return operacaoId
+        + "__ALUNO__"
+        + alunoId;
+    }
+
+    function caminhoAuditoriaAluno(
+      operacaoId,
+      alunoId
+    ) {
+      let eventoId = eventoIdAluno(
+        operacaoId,
+        alunoId
+      );
+
+      return /databases/$(database)/documents/auditoriaAdministrativa/$(eventoId);
+    }
+
+    function caminhoAluno(alunoId) {
+      return /databases/$(database)/documents/alunos/$(alunoId);
     }
 
 
@@ -380,6 +401,26 @@ service cloud.firestore {
     function eventoIdUsuarioValido(eventoId, data) {
       return eventoId
         == eventoIdUsuario(
+          data.operacaoId,
+          data.entidadeId
+        );
+    }
+
+    function auditoriaAlunoPossuiValoresControlados(data) {
+      return data.entidade == "ALUNO"
+        && data.autorUid == request.auth.uid
+        && data.ocorridoEm == request.time
+        && data.versaoSchema == 1
+        && (
+          data.acao == "ALUNO_ATUALIZADO"
+          || data.acao == "ALUNO_ATIVADO"
+          || data.acao == "ALUNO_DESATIVADO"
+        );
+    }
+
+    function eventoIdAlunoValido(eventoId, data) {
+      return eventoId
+        == eventoIdAluno(
           data.operacaoId,
           data.entidadeId
         );
@@ -552,6 +593,126 @@ service cloud.firestore {
         );
     }
 
+    /*
+     * ============================================================
+     * Coerência da auditoria de ALUNO
+     * ============================================================
+     */
+
+    function auditoriaAlunoCamposAlteradosValidos(
+      evento,
+      before,
+      after
+    ) {
+      return evento.camposAlterados.size() >= 1
+        && evento.camposAlterados.size() <= 3
+        && evento.camposAlterados.toSet().size()
+          == evento.camposAlterados.size()
+        && evento.camposAlterados.toSet().hasOnly([
+          "nome",
+          "faixa",
+          "ativo"
+        ])
+        && evento.before is map
+        && evento.after is map
+
+        && evento.before.keys().hasAll(
+          evento.camposAlterados
+        )
+        && evento.before.keys().hasOnly(
+          evento.camposAlterados
+        )
+
+        && evento.after.keys().hasAll(
+          evento.camposAlterados
+        )
+        && evento.after.keys().hasOnly(
+          evento.camposAlterados
+        )
+
+        && (
+          (before.nome != after.nome)
+          == ("nome" in evento.camposAlterados)
+        )
+        && (
+          (before.faixa != after.faixa)
+          == ("faixa" in evento.camposAlterados)
+        )
+        && (
+          (before.ativo != after.ativo)
+          == ("ativo" in evento.camposAlterados)
+        )
+
+        && (
+          !("nome" in evento.camposAlterados)
+          || (
+            evento.before.nome == before.nome
+            && evento.after.nome == after.nome
+          )
+        )
+        && (
+          !("faixa" in evento.camposAlterados)
+          || (
+            evento.before.faixa == before.faixa
+            && evento.after.faixa == after.faixa
+          )
+        )
+        && (
+          !("ativo" in evento.camposAlterados)
+          || (
+            evento.before.ativo == before.ativo
+            && evento.after.ativo == after.ativo
+          )
+        );
+    }
+
+    function auditoriaAlunoAcaoValida(
+      evento,
+      before,
+      after
+    ) {
+      return (
+          before.nome == after.nome
+          && before.faixa == after.faixa
+          && before.ativo == false
+          && after.ativo == true
+          && evento.acao == "ALUNO_ATIVADO"
+        )
+        ||
+        (
+          before.nome == after.nome
+          && before.faixa == after.faixa
+          && before.ativo == true
+          && after.ativo == false
+          && evento.acao == "ALUNO_DESATIVADO"
+        )
+        ||
+        (
+          (
+            before.nome != after.nome
+            || before.faixa != after.faixa
+          )
+          && evento.acao == "ALUNO_ATUALIZADO"
+        );
+    }
+
+    function auditoriaCoerenteComAlteracaoAluno(
+      evento,
+      before,
+      after
+    ) {
+      return auditoriaAlunoCamposAlteradosValidos(
+          evento,
+          before,
+          after
+        )
+        && auditoriaAlunoAcaoValida(
+          evento,
+          before,
+          after
+        );
+    }
+
 
     /*
      * ============================================================
@@ -626,6 +787,98 @@ service cloud.firestore {
 
     /*
      * ============================================================
+     * Validação cruzada:
+     * aluno UPDATE → auditoria CREATE
+     * ============================================================
+     */
+
+	function auditoriaAlunoCorrespondenteValida(
+	  caminho,
+	  alunoId,
+	  before,
+	  after
+	) {
+	  let evento = getAfter(caminho).data;
+
+	  return auditoriaPossuiCamposObrigatorios(
+		  evento
+		)
+		&& auditoriaPossuiTiposValidos(
+		  evento
+		)
+		&& auditoriaAlunoPossuiValoresControlados(
+		  evento
+		)
+		&& evento.operacaoId
+		  == after.ultimaOperacaoId
+		&& evento.entidadeId
+		  == alunoId
+		&& auditoriaCoerenteComAlteracaoAluno(
+		  evento,
+		  before,
+		  after
+		);
+	}
+
+	function auditoriaAlunoCorrespondenteExisteDepois(
+	  alunoId,
+	  before,
+	  after
+	) {
+	  let caminho = caminhoAuditoriaAluno(
+		after.ultimaOperacaoId,
+		alunoId
+	  );
+
+	  return !exists(caminho)
+		&& existsAfter(caminho)
+		&& auditoriaAlunoCorrespondenteValida(
+		  caminho,
+		  alunoId,
+		  before,
+		  after
+		);
+	}
+
+
+	/*
+	 * ============================================================
+	 * Validação cruzada:
+	 * auditoria CREATE → aluno UPDATE
+	 * ============================================================
+	 */
+
+	function alunoCorrespondenteAlteradoValido(
+	  caminho,
+	  evento
+	) {
+	  let before = get(caminho).data;
+	  let after = getAfter(caminho).data;
+
+	  return before.ultimaOperacaoId
+		  != after.ultimaOperacaoId
+		&& after.ultimaOperacaoId
+		  == evento.operacaoId;
+	}
+
+	function alunoCorrespondenteFoiAlterado(
+	  evento
+	) {
+	  let caminho = caminhoAluno(
+		evento.entidadeId
+	  );
+
+	  return exists(caminho)
+		&& existsAfter(caminho)
+		&& alunoCorrespondenteAlteradoValido(
+		  caminho,
+		  evento
+		);
+	}
+
+
+    /*
+     * ============================================================
      * Usuários
      * ============================================================
      */
@@ -660,17 +913,17 @@ service cloud.firestore {
        * - autoproteção S4-DEC-003 é respeitada;
        * - auditoria correspondente é criada no mesmo commit.
        */
-      allow update: if
-        alteracaoAdministrativaUsuarioBaseValida(
-          usuarioId,
-          resource.data,
-          request.resource.data
-        )
-        && auditoriaCorrespondenteExisteDepois(
-          usuarioId,
-          resource.data,
-          request.resource.data
-        );
+		allow update: if
+		  alteracaoAdministrativaUsuarioBaseValida(
+			usuarioId,
+			resource.data,
+			request.resource.data
+		  )
+		  && auditoriaCorrespondenteExisteDepois(
+			usuarioId,
+			resource.data,
+			request.resource.data
+		  );
 
       /*
        * CREATE será tratado separadamente na FB-05.
@@ -706,25 +959,41 @@ service cloud.firestore {
        * - before/after/camposAlterados refletem a
        *   alteração real executada.
        */
-      allow create: if
-        ehAdmin()
-        && auditoriaPossuiCamposObrigatorios(
-          request.resource.data
-        )
-        && auditoriaPossuiTiposValidos(
-          request.resource.data
-        )
-        && auditoriaUsuarioPossuiValoresControlados(
-          request.resource.data
-        )
-        && eventoIdUsuarioValido(
-          eventoId,
-          request.resource.data
-        )
-        && usuarioCorrespondenteFoiAlterado(
-          request.resource.data
-        );
-
+		allow create: if
+		  request.resource.data.entidade == "USUARIO"
+			? (
+				ehAdmin()
+				&& auditoriaPossuiCamposObrigatorios(
+				  request.resource.data
+				)
+				&& auditoriaPossuiTiposValidos(
+				  request.resource.data
+				)
+				&& auditoriaUsuarioPossuiValoresControlados(
+				  request.resource.data
+				)
+				&& eventoIdUsuarioValido(
+				  eventoId,
+				  request.resource.data
+				)
+				&& usuarioCorrespondenteFoiAlterado(
+				  request.resource.data
+				)
+			  )
+			: (
+				request.resource.data.entidade == "ALUNO"
+				? (
+					ehAdmin()
+					&& eventoIdAlunoValido(
+					  eventoId,
+					  request.resource.data
+					)
+					&& alunoCorrespondenteFoiAlterado(
+					  request.resource.data
+					)
+				  )
+				: false
+			  );
       /*
        * Nesta etapa a auditoria não é exposta para leitura.
        */
@@ -757,7 +1026,19 @@ service cloud.firestore {
 
     match /alunos/{alunoId} {
       allow read: if possuiAcessoOperacional();
-      allow create, update, delete: if false;
+
+	allow update: if
+	  ehAdmin()
+	  && alteracaoAdministrativaAlunoBaseValida(
+		resource.data,
+		request.resource.data
+	  )
+	  && auditoriaAlunoCorrespondenteExisteDepois(
+		alunoId,
+		resource.data,
+		request.resource.data
+	  );
+      allow create, delete: if false;
     }
 
 
