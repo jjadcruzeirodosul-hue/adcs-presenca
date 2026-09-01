@@ -26,10 +26,188 @@
 const ENTIDADE_ALUNO = "ALUNO";
 
 const ACOES_ALUNO = Object.freeze({
+    CRIADO: "ALUNO_CRIADO",
     ATUALIZADO: "ALUNO_ATUALIZADO",
     ATIVADO: "ALUNO_ATIVADO",
     DESATIVADO: "ALUNO_DESATIVADO"
 });
+
+/**
+ * Monta a operação administrativa de criação de aluno.
+ *
+ * A matrícula deve ter sido determinada pela transação responsável
+ * pela emissão sequencial.
+ *
+ * Esta função não realiza qualquer operação Firestore.
+ *
+ * @param {string} alunoId
+ * @param {{
+ *     nome: string,
+ *     faixa: string,
+ *     matricula: string
+ * }} dados
+ *
+ * @returns {{
+ *     operacaoId: string,
+ *     eventoId: string,
+ *     entidade: string,
+ *     entidadeId: string,
+ *     alunoId: string,
+ *     before: null,
+ *     after: {
+ *         nome: string,
+ *         faixa: string,
+ *         matricula: string,
+ *         ativo: boolean
+ *     },
+ *     camposAlterados: string[],
+ *     acao: string
+ * }}
+ */
+export function montarOperacaoCriacaoAluno(
+    alunoId,
+    dados
+) {
+    const alunoIdNormalizado =
+        normalizarAlunoId(alunoId);
+
+    const nome =
+        normalizarTexto(dados?.nome);
+
+    const faixa =
+        normalizarTexto(dados?.faixa);
+
+    const matricula =
+        normalizarMatricula(dados?.matricula);
+
+    const operacaoId =
+        gerarOperacaoId();
+
+    const eventoId =
+        montarEventoIdAluno(
+            operacaoId,
+            alunoIdNormalizado
+        );
+
+    return {
+        operacaoId,
+        eventoId,
+        entidade:
+            ENTIDADE_ALUNO,
+
+        entidadeId:
+            alunoIdNormalizado,
+
+        alunoId:
+            alunoIdNormalizado,
+
+        before:
+            null,
+
+        after: {
+            nome,
+            faixa,
+            matricula,
+            ativo: true
+        },
+
+        camposAlterados: [
+            "nome",
+            "faixa",
+            "ativo"
+        ],
+
+        acao:
+            ACOES_ALUNO.CRIADO
+    };
+}
+
+/**
+ * Monta o evento de auditoria correspondente à criação de aluno.
+ *
+ * @param {Object} operacao
+ * @param {{
+ *     autorUid: string,
+ *     ocorridoEm: Object,
+ *     contexto?: Object|null
+ * }} metadados
+ *
+ * @returns {Object}
+ */
+export function montarEventoAuditoriaCriacaoAluno(
+    operacao,
+    {
+        autorUid,
+        ocorridoEm,
+        contexto = null
+    }
+) {
+    if (
+        !operacao ||
+        operacao.acao !== ACOES_ALUNO.CRIADO ||
+        operacao.before !== null ||
+        typeof operacao.alunoId !== "string" ||
+        operacao.alunoId.trim() === ""
+    ) {
+        throw new Error(
+            "Operação administrativa de criação de aluno inválida."
+        );
+    }
+
+    if (
+        typeof autorUid !== "string" ||
+        autorUid.trim() === ""
+    ) {
+        throw new TypeError(
+            "UID do autor da operação é obrigatório."
+        );
+    }
+
+    return {
+        operacaoId:
+            operacao.operacaoId,
+
+        entidade:
+            ENTIDADE_ALUNO,
+
+        entidadeId:
+            operacao.alunoId,
+
+        acao:
+            ACOES_ALUNO.CRIADO,
+
+        autorUid:
+            autorUid.trim(),
+
+        ocorridoEm,
+
+        before:
+            null,
+
+        after: {
+            nome:
+                operacao.after.nome,
+
+            faixa:
+                operacao.after.faixa,
+
+            matricula:
+                operacao.after.matricula,
+
+            ativo:
+                true
+        },
+
+        camposAlterados: [
+            ...operacao.camposAlterados
+        ],
+
+        contexto,
+
+        versaoSchema:
+            1
+    };
+}
 
 /**
  * Monta uma operação administrativa de atualização de aluno.
@@ -473,6 +651,28 @@ function normalizarAlunoId(alunoId) {
     }
 
     return alunoId.trim();
+}
+
+/**
+ * Normaliza e valida uma matrícula de aluno.
+ *
+ * @param {*} valor
+ * @returns {string}
+ */
+function normalizarMatricula(valor) {
+    const matricula =
+        String(valor ?? "").trim();
+
+    if (
+        !/^[0-9]{6}$/.test(matricula) ||
+        matricula === "000000"
+    ) {
+        throw new TypeError(
+            "Matrícula de aluno inválida."
+        );
+    }
+
+    return matricula;
 }
 
 /**
