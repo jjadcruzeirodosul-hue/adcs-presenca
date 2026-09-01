@@ -27,7 +27,8 @@ import {
     getDoc,
     getDocs,
     runTransaction,
-    serverTimestamp
+    serverTimestamp,
+    writeBatch
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 import {
@@ -35,6 +36,7 @@ import {
 } from "../../firebase.js";
 
 import {
+    montarEventoAuditoriaAluno,
     montarEventoAuditoriaCriacaoAluno,
     montarOperacaoCriacaoAluno
 } from "./admin-alunos-operation.js";
@@ -351,6 +353,127 @@ export async function criarAlunoAdministrativo(
             };
         }
     );
+}
+
+/**
+ * Persiste atomicamente uma alteração administrativa de aluno
+ * e seu respectivo evento de auditoria.
+ *
+ * Aplicável a:
+ * - atualização funcional;
+ * - ativação;
+ * - desativação.
+ *
+ * Matrícula não participa do UPDATE.
+ *
+ * @param {{
+ *     operacaoId: string,
+ *     eventoId: string,
+ *     entidade: string,
+ *     entidadeId: string,
+ *     alunoId: string,
+ *     before: {
+ *         nome: string,
+ *         faixa: string,
+ *         ativo: boolean
+ *     },
+ *     after: {
+ *         nome: string,
+ *         faixa: string,
+ *         ativo: boolean
+ *     },
+ *     camposAlterados: string[],
+ *     acao: string
+ * }} operacao
+ *
+ * @param {string} autorUid
+ *
+ * @returns {Promise<void>}
+ */
+export async function persistirOperacaoAluno(
+    operacao,
+    autorUid
+) {
+    if (
+        !operacao ||
+        typeof operacao.alunoId !== "string" ||
+        operacao.alunoId.trim() === ""
+    ) {
+        throw new Error(
+            "Operação administrativa de aluno inválida."
+        );
+    }
+
+    const autorUidNormalizado =
+        normalizarTextoObrigatorio(
+            autorUid,
+            "UID do autor"
+        );
+
+    const timestampServidor =
+        serverTimestamp();
+
+    const evento =
+        montarEventoAuditoriaAluno(
+            operacao,
+            {
+                autorUid:
+                    autorUidNormalizado,
+
+                ocorridoEm:
+                    timestampServidor,
+
+                contexto:
+                    null
+            }
+        );
+
+    const referenciaAluno =
+        doc(
+            db,
+            "alunos",
+            operacao.alunoId
+        );
+
+    const referenciaAuditoria =
+        doc(
+            db,
+            "auditoriaAdministrativa",
+            operacao.eventoId
+        );
+
+    const batch =
+        writeBatch(db);
+
+    batch.update(
+        referenciaAluno,
+        {
+            nome:
+                operacao.after.nome,
+
+            faixa:
+                operacao.after.faixa,
+
+            ativo:
+                operacao.after.ativo,
+
+            atualizadoEm:
+                timestampServidor,
+
+            atualizadoPor:
+                autorUidNormalizado,
+
+            ultimaOperacaoId:
+                operacao.operacaoId
+        }
+    );
+
+    batch.set(
+        referenciaAuditoria,
+        evento
+    );
+
+    await batch.commit();
 }
 
 /**

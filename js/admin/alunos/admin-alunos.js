@@ -22,8 +22,14 @@
 "use strict";
 
 import {
+    obterUsuarioAutenticado
+} from "../../auth/session.js";
+
+import {
+    criarAlunoAdministrativo,
     listarAlunosAdministrativos,
-    obterAlunoAdministrativo
+    obterAlunoAdministrativo,
+    persistirOperacaoAluno
 } from "./admin-alunos-service.js";
 
 import {
@@ -44,6 +50,7 @@ import {
 
 let moduloInicializado = false;
 let carregamentoEmAndamento = false;
+let persistenciaEmAndamento = false;
 let alunoSelecionado = null;
 
 /**
@@ -69,17 +76,17 @@ export function initAdminAlunos() {
             iniciarEdicaoAlunoSelecionado();
         },
 
-        onPrepararNovoAluno: (dados) => {
-            prepararNovoAlunoLocalmente(
-                dados
-            );
-        },
+		onPrepararNovoAluno: (dados) => {
+			void criarNovoAlunoAdministrativo(
+				dados
+			);
+		},
 
-        onPrepararEdicaoAluno: (dados) => {
-            prepararEdicaoAlunoLocalmente(
-                dados
-            );
-        },
+		onPrepararEdicaoAluno: (dados) => {
+			void persistirEdicaoAluno(
+				dados
+			);
+		},
 
         onCancelarEdicao: () => {
             cancelarEdicaoLocal();
@@ -232,18 +239,26 @@ function iniciarEdicaoAlunoSelecionado() {
 }
 
 /**
- * Valida e prepara localmente um novo aluno.
+ * Valida e cria um novo aluno por meio da operação
+ * transacional administrativa.
  *
- * Não persiste dados.
+ * A matrícula é definida exclusivamente pelo service,
+ * dentro da transação do Firestore.
  *
  * @param {{
  *     nome: string,
  *     faixa: string
  * }} dados
+ *
+ * @returns {Promise<void>}
  */
-function prepararNovoAlunoLocalmente(
+async function criarNovoAlunoAdministrativo(
     dados
 ) {
+    if (persistenciaEmAndamento) {
+        return;
+    }
+
     const nome =
         normalizarTexto(dados.nome);
 
@@ -268,36 +283,142 @@ function prepararNovoAlunoLocalmente(
         return;
     }
 
+    const usuarioAutenticado =
+        obterUsuarioAutenticado();
+
+    if (!usuarioAutenticado?.uid) {
+        mostrarEstadoAlunos(
+            "A sessão autenticada não está disponível.",
+            "error"
+        );
+
+        return;
+    }
+
+    persistenciaEmAndamento = true;
+
+    mostrarEstadoAlunos(
+        "Criando aluno e emitindo matrícula...",
+        "info"
+    );
+
     console.info(
-        "[Admin][Alunos] Novo aluno preparado localmente.",
+        "[Admin][Alunos] Criação administrativa iniciada.",
         {
             nome,
-            faixa,
-            ativo: true
+            faixa
         }
     );
 
-    mostrarEstadoAlunos(
-        "Dados do novo aluno validados localmente. " +
-        "Nenhuma alteração foi gravada.",
-        "success"
-    );
+    try {
+        const resultadoCriacao =
+            await criarAlunoAdministrativo(
+                {
+                    nome,
+                    faixa
+                },
+                usuarioAutenticado.uid
+            );
+
+        console.info(
+            "[Admin][Alunos] Aluno criado com sucesso.",
+            {
+                alunoId:
+                    resultadoCriacao.id,
+
+                matricula:
+                    resultadoCriacao.matricula,
+
+                operacaoId:
+                    resultadoCriacao.operacaoId,
+
+                eventoId:
+                    resultadoCriacao.eventoId
+            }
+        );
+
+        /*
+         * Reconsulta obrigatória do documento recém-criado.
+         * A UI passa a refletir o estado efetivamente persistido.
+         */
+        const alunoCriado =
+            await obterAlunoAdministrativo(
+                resultadoCriacao.id
+            );
+
+        if (!alunoCriado) {
+            throw new Error(
+                "Aluno criado não foi localizado após a persistência."
+            );
+        }
+
+        alunoSelecionado =
+            alunoCriado;
+
+        /*
+         * Atualiza imediatamente a listagem administrativa.
+         */
+        const alunos =
+            await listarAlunosAdministrativos();
+
+        if (alunos.length === 0) {
+            mostrarListaVaziaAlunos();
+        } else {
+            mostrarListaAlunos(
+                alunos
+            );
+        }
+
+        /*
+         * A renderização da lista oculta o editor.
+         * Reabrimos o aluno persistido para exibir inclusive
+         * a matrícula emitida pela transação.
+         */
+        mostrarAlunoSelecionado(
+            alunoSelecionado
+        );
+
+        mostrarEstadoAlunos(
+            "Aluno criado com sucesso. Matrícula " +
+            resultadoCriacao.matricula +
+            " emitida.",
+            "success"
+        );
+    } catch (erro) {
+        console.error(
+            "[Admin][Alunos] Falha ao criar aluno:",
+            erro
+        );
+
+        mostrarEstadoAlunos(
+            obterMensagemErroPersistencia(
+                erro
+            ),
+            "error"
+        );
+    } finally {
+        persistenciaEmAndamento = false;
+    }
 }
 
 /**
- * Valida e prepara localmente a edição de um aluno.
- *
- * Monta a operação administrativa, mas não persiste dados.
+ * Valida, monta e persiste uma alteração administrativa de aluno.
  *
  * @param {{
  *     nome: string,
  *     faixa: string,
  *     ativo: boolean
  * }} dados
+ *
+ * @returns {Promise<void>}
  */
-function prepararEdicaoAlunoLocalmente(
+async function persistirEdicaoAluno(
     dados
 ) {
+    if (persistenciaEmAndamento) {
+        return;
+    }
+
     if (!alunoSelecionado) {
         mostrarEstadoAlunos(
             "Nenhum aluno selecionado para edição.",
@@ -334,15 +455,31 @@ function prepararEdicaoAlunoLocalmente(
         return;
     }
 
-    const operacao =
-        montarOperacaoAluno(
-            alunoSelecionado,
-            {
-                nome,
-                faixa,
-                ativo
-            }
+    let operacao;
+
+    try {
+        operacao =
+            montarOperacaoAluno(
+                alunoSelecionado,
+                {
+                    nome,
+                    faixa,
+                    ativo
+                }
+            );
+    } catch (erro) {
+        console.error(
+            "[Admin][Alunos] Falha ao montar operação administrativa:",
+            erro
         );
+
+        mostrarEstadoAlunos(
+            "Não foi possível preparar a operação administrativa.",
+            "error"
+        );
+
+        return;
+    }
 
     if (!operacao) {
         console.info(
@@ -361,8 +498,27 @@ function prepararEdicaoAlunoLocalmente(
         return;
     }
 
+    const usuarioAutenticado =
+        obterUsuarioAutenticado();
+
+    if (!usuarioAutenticado?.uid) {
+        mostrarEstadoAlunos(
+            "A sessão autenticada não está disponível.",
+            "error"
+        );
+
+        return;
+    }
+
+    persistenciaEmAndamento = true;
+
+    mostrarEstadoAlunos(
+        "Salvando alteração administrativa...",
+        "info"
+    );
+
     console.info(
-        "[Admin][Alunos] Operação de aluno preparada localmente.",
+        "[Admin][Alunos] Persistência administrativa iniciada.",
         {
             alunoId:
                 operacao.alunoId,
@@ -377,21 +533,91 @@ function prepararEdicaoAlunoLocalmente(
                 operacao.acao,
 
             camposAlterados:
-                operacao.camposAlterados,
-
-            before:
-                operacao.before,
-
-            after:
-                operacao.after
+                operacao.camposAlterados
         }
     );
 
-    mostrarEstadoAlunos(
-        "Alterações validadas e operação administrativa " +
-        "montada localmente. Nenhuma alteração foi gravada.",
-        "success"
-    );
+    try {
+        await persistirOperacaoAluno(
+            operacao,
+            usuarioAutenticado.uid
+        );
+
+        console.info(
+            "[Admin][Alunos] Operação administrativa persistida.",
+            {
+                alunoId:
+                    operacao.alunoId,
+
+                operacaoId:
+                    operacao.operacaoId,
+
+                eventoId:
+                    operacao.eventoId,
+
+                acao:
+                    operacao.acao
+            }
+        );
+
+        /*
+         * Reconsulta obrigatória do documento alterado.
+         */
+        const alunoAtualizado =
+            await obterAlunoAdministrativo(
+                operacao.alunoId
+            );
+
+        if (!alunoAtualizado) {
+            throw new Error(
+                "Aluno atualizado não foi localizado após a persistência."
+            );
+        }
+
+        alunoSelecionado =
+            alunoAtualizado;
+
+        /*
+         * Atualiza também a listagem administrativa.
+         */
+        const alunos =
+            await listarAlunosAdministrativos();
+
+        if (alunos.length === 0) {
+            mostrarListaVaziaAlunos();
+        } else {
+            mostrarListaAlunos(
+                alunos
+            );
+        }
+
+        /*
+         * A renderização da lista oculta o editor.
+         * Reabrimos o aluno já reconsultado do Firestore.
+         */
+        mostrarAlunoSelecionado(
+            alunoSelecionado
+        );
+
+        mostrarEstadoAlunos(
+            "Alteração administrativa salva com sucesso.",
+            "success"
+        );
+    } catch (erro) {
+        console.error(
+            "[Admin][Alunos] Falha ao persistir operação administrativa:",
+            erro
+        );
+
+        mostrarEstadoAlunos(
+            obterMensagemErroPersistencia(
+                erro
+            ),
+            "error"
+        );
+    } finally {
+        persistenciaEmAndamento = false;
+    }
 }
 
 /**
@@ -433,6 +659,46 @@ function normalizarTexto(valor) {
     }
 
     return valor.trim();
+}
+
+/**
+ * Converte erros técnicos de persistência em mensagens adequadas
+ * para a interface administrativa.
+ *
+ * @param {unknown} erro
+ * @returns {string}
+ */
+function obterMensagemErroPersistencia(
+    erro
+) {
+    const codigo =
+        erro &&
+        typeof erro === "object" &&
+        typeof erro.code === "string"
+            ? erro.code
+            : "";
+
+    if (codigo === "permission-denied") {
+        return (
+            "A alteração foi recusada pelas regras de segurança. " +
+            "Nenhum dado foi gravado."
+        );
+    }
+
+    if (
+        codigo === "unavailable" ||
+        codigo === "network-request-failed"
+    ) {
+        return (
+            "Não foi possível concluir a alteração. " +
+            "Verifique sua conexão e tente novamente."
+        );
+    }
+
+    return (
+        "Não foi possível salvar a alteração administrativa. " +
+        "Nenhum dado foi confirmado."
+    );
 }
 
 /**
