@@ -169,6 +169,229 @@ service cloud.firestore {
         );
     }
 
+	/*
+     * ============================================================
+     * Validações de alunos/{alunoId}
+     * ============================================================
+     */
+
+    function estadoAlunoValido(data) {
+      return data.keys().hasAll([
+          "nome",
+          "faixa",
+          "matricula",
+          "ativo",
+          "atualizadoEm",
+          "atualizadoPor",
+          "ultimaOperacaoId"
+        ])
+        && data.keys().hasOnly([
+          "nome",
+          "faixa",
+          "matricula",
+          "ativo",
+          "atualizadoEm",
+          "atualizadoPor",
+          "ultimaOperacaoId"
+        ])
+        && data.nome is string
+        && data.nome.size() > 0
+        && data.faixa is string
+        && data.faixa.size() > 0
+        && data.matricula is string
+        && data.matricula.matches('^[0-9]{6}$')
+        && data.matricula != "000000"
+        && data.ativo is bool
+        && data.atualizadoEm is timestamp
+        && data.atualizadoPor is string
+        && data.atualizadoPor.size() > 0
+        && data.ultimaOperacaoId is string
+        && data.ultimaOperacaoId.size() > 0;
+    }
+
+    function camposAdministraveisAlunoAlterados(before, after) {
+      return before.nome != after.nome
+        || before.faixa != after.faixa
+        || before.ativo != after.ativo;
+    }
+
+    function matriculaAlunoPermaneceImutavel(before, after) {
+      return before.matricula == after.matricula;
+    }
+
+    function camposAlteradosAlunoPermitidos(before, after) {
+      return after
+        .diff(before)
+        .affectedKeys()
+        .hasOnly([
+          "nome",
+          "faixa",
+          "ativo",
+          "atualizadoEm",
+          "atualizadoPor",
+          "ultimaOperacaoId"
+        ]);
+    }
+
+    function metadadosAlunoValidos(after) {
+      return after.atualizadoEm == request.time
+        && after.atualizadoPor == request.auth.uid
+        && after.ultimaOperacaoId is string
+        && after.ultimaOperacaoId.size() > 0;
+    }
+
+    function metadadosAlunoForamAtualizados(before, after) {
+      return after
+        .diff(before)
+        .affectedKeys()
+        .hasAll([
+          "atualizadoEm",
+          "ultimaOperacaoId"
+        ]);
+    }
+
+    function alteracaoAdministrativaAlunoBaseValida(
+      before,
+      after
+    ) {
+      return estadoAlunoValido(after)
+        && camposAlteradosAlunoPermitidos(
+          before,
+          after
+        )
+        && matriculaAlunoPermaneceImutavel(
+          before,
+          after
+        )
+        && camposAdministraveisAlunoAlterados(
+          before,
+          after
+        )
+        && metadadosAlunoForamAtualizados(
+          before,
+          after
+        )
+        && metadadosAlunoValidos(after);
+    }
+
+	function criacaoAdministrativaAlunoBaseValida(after) {
+	  return ehAdmin()
+		&& estadoAlunoValido(after)
+		&& after.ativo == true
+		&& metadadosAlunoValidos(after);
+	}
+
+	/*
+	 * ============================================================
+	 * Validações de contadores/matriculasAlunos
+	 * ============================================================
+	 *
+	 * S4-DEC-005
+	 *
+	 * O contador pode existir em dois estados físicos:
+	 *
+	 * 1. legado da Sprint 4:
+	 *    sem ultimoAlunoId;
+	 *
+	 * 2. contrato S4-004:
+	 *    com ultimoAlunoId.
+	 *
+	 * Não haverá backfill obrigatório.
+	 */
+
+	function contadorMatriculasAlunosPossuiCamposBase(data) {
+	  return data.keys().hasAll([
+		  "ultimoNumeroEmitido",
+		  "atualizadoEm",
+		  "atualizadoPor",
+		  "ultimaOperacaoId",
+		  "versaoSchema"
+		])
+		&& data.keys().hasOnly([
+		  "ultimoNumeroEmitido",
+		  "atualizadoEm",
+		  "atualizadoPor",
+		  "ultimaOperacaoId",
+		  "ultimoAlunoId",
+		  "versaoSchema"
+		]);
+	}
+
+	function contadorMatriculasAlunosPossuiTiposBaseValidos(data) {
+	  return data.ultimoNumeroEmitido is int
+		&& data.ultimoNumeroEmitido >= 0
+		&& data.ultimoNumeroEmitido <= 999999
+		&& data.atualizadoEm is timestamp
+		&& data.atualizadoPor is string
+		&& data.ultimaOperacaoId is string
+		&& data.versaoSchema is int
+		&& data.versaoSchema == 1;
+	}
+
+	function contadorMatriculasAlunosPossuiUltimoAlunoIdValido(data) {
+	  return !("ultimoAlunoId" in data)
+		|| (
+		  data.ultimoAlunoId is string
+		  && data.ultimoAlunoId.size() > 0
+		);
+	}
+
+	function estadoContadorMatriculasAlunosValido(data) {
+	  return contadorMatriculasAlunosPossuiCamposBase(data)
+		&& contadorMatriculasAlunosPossuiTiposBaseValidos(data)
+		&& contadorMatriculasAlunosPossuiUltimoAlunoIdValido(data);
+	}
+
+	function contadorMatriculasAlunosFoiAtualizado() {
+	  let caminho = caminhoContadorMatriculasAlunos();
+
+	  return exists(caminho)
+		&& existsAfter(caminho)
+		&& getAfter(caminho).data.diff(
+			 get(caminho).data
+		   ).affectedKeys().size() > 0;
+	}
+
+	function contadorMatriculasAlunosAtualizadoValido(before, after) {
+	  return estadoContadorMatriculasAlunosValido(before)
+		&& estadoContadorMatriculasAlunosValido(after)
+		&& after.ultimoNumeroEmitido
+		  == before.ultimoNumeroEmitido + 1
+		&& after.ultimoNumeroEmitido <= 999999
+		&& "ultimoAlunoId" in after
+		&& after.ultimoAlunoId is string
+		&& after.ultimoAlunoId.size() > 0
+		&& after.atualizadoEm == request.time
+		&& after.atualizadoPor == request.auth.uid
+		&& after.ultimaOperacaoId is string
+		&& after.ultimaOperacaoId.size() > 0
+		&& after.versaoSchema == before.versaoSchema;
+	}
+
+	function alunoReferenciadoPeloContadorCriadoDepois(after) {
+	  let caminho =
+		/databases/$(database)/documents/alunos/$(after.ultimoAlunoId);
+
+	  let aluno = getAfter(caminho).data;
+
+	  return !exists(caminho)
+		&& existsAfter(caminho)
+		&& aluno.ultimaOperacaoId == after.ultimaOperacaoId
+		&& aluno.atualizadoPor == request.auth.uid
+		&& aluno.atualizadoEm == request.time
+		&& aluno.matricula.matches('^[0-9]{6}$')
+		&& aluno.matricula != "000000"
+		&& int(aluno.matricula) == after.ultimoNumeroEmitido;
+	}
+
+	function atualizacaoContadorParaCriacaoAlunoValida(before, after) {
+	  return ehAdmin()
+		&& contadorMatriculasAlunosAtualizadoValido(
+		  before,
+		  after
+		)
+		&& alunoReferenciadoPeloContadorCriadoDepois(after);
+	}
 
     /*
      * ============================================================
@@ -196,6 +419,32 @@ service cloud.firestore {
 
     function caminhoUsuario(usuarioId) {
       return /databases/$(database)/documents/usuarios/$(usuarioId);
+    }
+
+	function caminhoContadorMatriculasAlunos() {
+	  return /databases/$(database)/documents/contadores/matriculasAlunos;
+	}
+
+    function eventoIdAluno(operacaoId, alunoId) {
+      return operacaoId
+        + "__ALUNO__"
+        + alunoId;
+    }
+
+    function caminhoAuditoriaAluno(
+      operacaoId,
+      alunoId
+    ) {
+      let eventoId = eventoIdAluno(
+        operacaoId,
+        alunoId
+      );
+
+      return /databases/$(database)/documents/auditoriaAdministrativa/$(eventoId);
+    }
+
+    function caminhoAluno(alunoId) {
+      return /databases/$(database)/documents/alunos/$(alunoId);
     }
 
 
@@ -274,6 +523,27 @@ service cloud.firestore {
     function eventoIdUsuarioValido(eventoId, data) {
       return eventoId
         == eventoIdUsuario(
+          data.operacaoId,
+          data.entidadeId
+        );
+    }
+
+	function auditoriaAlunoPossuiValoresControlados(data) {
+	  return data.entidade == "ALUNO"
+		&& data.autorUid == request.auth.uid
+		&& data.ocorridoEm == request.time
+		&& data.versaoSchema == 1
+		&& (
+		  data.acao == "ALUNO_CRIADO"
+		  || data.acao == "ALUNO_ATUALIZADO"
+		  || data.acao == "ALUNO_ATIVADO"
+		  || data.acao == "ALUNO_DESATIVADO"
+		);
+	}
+
+    function eventoIdAlunoValido(eventoId, data) {
+      return eventoId
+        == eventoIdAluno(
           data.operacaoId,
           data.entidadeId
         );
@@ -446,6 +716,126 @@ service cloud.firestore {
         );
     }
 
+    /*
+     * ============================================================
+     * Coerência da auditoria de ALUNO
+     * ============================================================
+     */
+
+    function auditoriaAlunoCamposAlteradosValidos(
+      evento,
+      before,
+      after
+    ) {
+      return evento.camposAlterados.size() >= 1
+        && evento.camposAlterados.size() <= 3
+        && evento.camposAlterados.toSet().size()
+          == evento.camposAlterados.size()
+        && evento.camposAlterados.toSet().hasOnly([
+          "nome",
+          "faixa",
+          "ativo"
+        ])
+        && evento.before is map
+        && evento.after is map
+
+        && evento.before.keys().hasAll(
+          evento.camposAlterados
+        )
+        && evento.before.keys().hasOnly(
+          evento.camposAlterados
+        )
+
+        && evento.after.keys().hasAll(
+          evento.camposAlterados
+        )
+        && evento.after.keys().hasOnly(
+          evento.camposAlterados
+        )
+
+        && (
+          (before.nome != after.nome)
+          == ("nome" in evento.camposAlterados)
+        )
+        && (
+          (before.faixa != after.faixa)
+          == ("faixa" in evento.camposAlterados)
+        )
+        && (
+          (before.ativo != after.ativo)
+          == ("ativo" in evento.camposAlterados)
+        )
+
+        && (
+          !("nome" in evento.camposAlterados)
+          || (
+            evento.before.nome == before.nome
+            && evento.after.nome == after.nome
+          )
+        )
+        && (
+          !("faixa" in evento.camposAlterados)
+          || (
+            evento.before.faixa == before.faixa
+            && evento.after.faixa == after.faixa
+          )
+        )
+        && (
+          !("ativo" in evento.camposAlterados)
+          || (
+            evento.before.ativo == before.ativo
+            && evento.after.ativo == after.ativo
+          )
+        );
+    }
+
+    function auditoriaAlunoAcaoValida(
+      evento,
+      before,
+      after
+    ) {
+      return (
+          before.nome == after.nome
+          && before.faixa == after.faixa
+          && before.ativo == false
+          && after.ativo == true
+          && evento.acao == "ALUNO_ATIVADO"
+        )
+        ||
+        (
+          before.nome == after.nome
+          && before.faixa == after.faixa
+          && before.ativo == true
+          && after.ativo == false
+          && evento.acao == "ALUNO_DESATIVADO"
+        )
+        ||
+        (
+          (
+            before.nome != after.nome
+            || before.faixa != after.faixa
+          )
+          && evento.acao == "ALUNO_ATUALIZADO"
+        );
+    }
+
+    function auditoriaCoerenteComAlteracaoAluno(
+      evento,
+      before,
+      after
+    ) {
+      return auditoriaAlunoCamposAlteradosValidos(
+          evento,
+          before,
+          after
+        )
+        && auditoriaAlunoAcaoValida(
+          evento,
+          before,
+          after
+        );
+    }
+
 
     /*
      * ============================================================
@@ -520,6 +910,150 @@ service cloud.firestore {
 
     /*
      * ============================================================
+     * Validação cruzada:
+     * aluno UPDATE → auditoria CREATE
+     * ============================================================
+     */
+
+	function auditoriaAlunoCorrespondenteValida(
+	  caminho,
+	  alunoId,
+	  before,
+	  after
+	) {
+	  let evento = getAfter(caminho).data;
+
+	  return auditoriaPossuiCamposObrigatorios(
+		  evento
+		)
+		&& auditoriaPossuiTiposValidos(
+		  evento
+		)
+		&& auditoriaAlunoPossuiValoresControlados(
+		  evento
+		)
+		&& evento.operacaoId
+		  == after.ultimaOperacaoId
+		&& evento.entidadeId
+		  == alunoId
+		&& auditoriaCoerenteComAlteracaoAluno(
+		  evento,
+		  before,
+		  after
+		);
+	}
+
+	function auditoriaAlunoCorrespondenteExisteDepois(
+	  alunoId,
+	  before,
+	  after
+	) {
+	  let caminho = caminhoAuditoriaAluno(
+		after.ultimaOperacaoId,
+		alunoId
+	  );
+
+	  return !exists(caminho)
+		&& existsAfter(caminho)
+		&& auditoriaAlunoCorrespondenteValida(
+		  caminho,
+		  alunoId,
+		  before,
+		  after
+		);
+	}
+
+	function auditoriaAlunoCriadoCorrespondenteExisteDepois(
+	  alunoId,
+	  aluno
+	) {
+	  let caminho =
+		caminhoAuditoriaAluno(
+		  aluno.ultimaOperacaoId,
+		  alunoId
+		);
+
+	  let evento = getAfter(caminho).data;
+
+	  return !exists(caminho)
+		&& existsAfter(caminho)
+		&& auditoriaPossuiCamposObrigatorios(evento)
+		&& auditoriaPossuiTiposValidos(evento)
+		&& auditoriaAlunoPossuiValoresControlados(evento)
+		&& evento.acao == "ALUNO_CRIADO"
+		&& evento.operacaoId == aluno.ultimaOperacaoId
+		&& evento.entidadeId == alunoId
+		&& evento.autorUid == request.auth.uid
+		&& evento.ocorridoEm == request.time
+		&& evento.before == null
+		&& evento.after is map;
+	}
+
+
+	/*
+	 * ============================================================
+	 * Validação cruzada:
+	 * auditoria CREATE → aluno UPDATE
+	 * ============================================================
+	 */
+
+	function auditoriaCriacaoAlunoValida(evento) {
+	  let caminho = caminhoAluno(evento.entidadeId);
+	  let aluno = getAfter(caminho).data;
+	  let contador =
+		getAfter(caminhoContadorMatriculasAlunos()).data;
+
+	  return evento.acao == "ALUNO_CRIADO"
+		&& !exists(caminho)
+		&& existsAfter(caminho)
+		&& aluno.ultimaOperacaoId == evento.operacaoId
+		&& aluno.atualizadoPor == request.auth.uid
+		&& aluno.atualizadoEm == request.time
+		&& contador.ultimaOperacaoId == evento.operacaoId
+		&& contador.ultimoAlunoId == evento.entidadeId
+		&& evento.before == null
+		&& evento.after is map;
+	}
+
+	function alunoCorrespondenteAlteradoValido(
+	  caminho,
+	  evento
+	) {
+	  let before = get(caminho).data;
+	  let after = getAfter(caminho).data;
+
+	  return before.ultimaOperacaoId
+		  != after.ultimaOperacaoId
+		&& after.ultimaOperacaoId
+		  == evento.operacaoId;
+	}
+
+	function alunoCorrespondenteFoiAlterado(evento) {
+	  return evento.acao == "ALUNO_CRIADO"
+		? auditoriaCriacaoAlunoValida(evento)
+		: (
+			evento.acao == "ALUNO_ATUALIZADO"
+			|| evento.acao == "ALUNO_ATIVADO"
+			|| evento.acao == "ALUNO_DESATIVADO"
+		  )
+		  ? alunoCorrespondenteAtualizadoValido(evento)
+		  : false;
+	}
+
+	function alunoCorrespondenteAtualizadoValido(evento) {
+	  let caminho = caminhoAluno(evento.entidadeId);
+
+	  return exists(caminho)
+		&& existsAfter(caminho)
+		&& alunoCorrespondenteAlteradoValido(
+		  caminho,
+		  evento
+		);
+	}
+
+
+    /*
+     * ============================================================
      * Usuários
      * ============================================================
      */
@@ -554,17 +1088,17 @@ service cloud.firestore {
        * - autoproteção S4-DEC-003 é respeitada;
        * - auditoria correspondente é criada no mesmo commit.
        */
-      allow update: if
-        alteracaoAdministrativaUsuarioBaseValida(
-          usuarioId,
-          resource.data,
-          request.resource.data
-        )
-        && auditoriaCorrespondenteExisteDepois(
-          usuarioId,
-          resource.data,
-          request.resource.data
-        );
+		allow update: if
+		  alteracaoAdministrativaUsuarioBaseValida(
+			usuarioId,
+			resource.data,
+			request.resource.data
+		  )
+		  && auditoriaCorrespondenteExisteDepois(
+			usuarioId,
+			resource.data,
+			request.resource.data
+		  );
 
       /*
        * CREATE será tratado separadamente na FB-05.
@@ -600,34 +1134,61 @@ service cloud.firestore {
        * - before/after/camposAlterados refletem a
        *   alteração real executada.
        */
-      allow create: if
-        ehAdmin()
-        && auditoriaPossuiCamposObrigatorios(
-          request.resource.data
-        )
-        && auditoriaPossuiTiposValidos(
-          request.resource.data
-        )
-        && auditoriaUsuarioPossuiValoresControlados(
-          request.resource.data
-        )
-        && eventoIdUsuarioValido(
-          eventoId,
-          request.resource.data
-        )
-        && usuarioCorrespondenteFoiAlterado(
-          request.resource.data
-        );
-
+		allow create: if
+		  request.resource.data.entidade == "USUARIO"
+			? (
+				ehAdmin()
+				&& auditoriaPossuiCamposObrigatorios(
+				  request.resource.data
+				)
+				&& auditoriaPossuiTiposValidos(
+				  request.resource.data
+				)
+				&& auditoriaUsuarioPossuiValoresControlados(
+				  request.resource.data
+				)
+				&& eventoIdUsuarioValido(
+				  eventoId,
+				  request.resource.data
+				)
+				&& usuarioCorrespondenteFoiAlterado(
+				  request.resource.data
+				)
+			  )
+			: (
+				request.resource.data.entidade == "ALUNO"
+				? (
+					ehAdmin()
+					&& eventoIdAlunoValido(
+					  eventoId,
+					  request.resource.data
+					)
+					&& alunoCorrespondenteFoiAlterado(
+					  request.resource.data
+					)
+				  )
+				: false
+			  );
       /*
        * Nesta etapa a auditoria não é exposta para leitura.
        */
       allow get, list: if false;
 
-      /*
-       * Append-only.
-       */
-      allow update, delete: if false;
+		/*
+		 * FB-05
+		 *
+		 * UPDATE permitido somente quando o contador participa
+		 * da criação atômica de um novo aluno.
+		 *
+		 * CREATE e DELETE permanecem proibidos.
+		 */
+		allow update: if
+		  atualizacaoContadorParaCriacaoAlunoValida(
+			resource.data,
+			request.resource.data
+		  );
+
+		allow create, delete: if false;
     }
 
 
@@ -643,6 +1204,43 @@ service cloud.firestore {
     }
 
 
+	/*
+	 * ============================================================
+	 * Contador de matrículas de alunos — S4-DEC-005
+	 * ============================================================
+	 */
+
+	match /contadores/matriculasAlunos {
+
+	  /*
+	   * Consulta necessária ao fluxo administrativo de emissão
+	   * de matrícula.
+	   */
+	  allow get: if ehAdmin();
+
+	  /*
+	   * O contador é documento singleton e não possui listagem.
+	   */
+	  allow list: if false;
+
+		/*
+		 * FB-05
+		 *
+		 * UPDATE permitido somente quando o contador participa
+		 * da criação atômica de um novo aluno.
+		 *
+		 * CREATE e DELETE permanecem proibidos.
+		 */
+		allow update: if
+		  atualizacaoContadorParaCriacaoAlunoValida(
+			resource.data,
+			request.resource.data
+		  );
+
+		allow create, delete: if false;
+	}
+
+
     /*
      * ============================================================
      * Alunos — baseline Sprint 3 preservada
@@ -651,7 +1249,30 @@ service cloud.firestore {
 
     match /alunos/{alunoId} {
       allow read: if possuiAcessoOperacional();
-      allow create, update, delete: if false;
+
+	allow update: if
+	  ehAdmin()
+	  && alteracaoAdministrativaAlunoBaseValida(
+		resource.data,
+		request.resource.data
+	  )
+	  && auditoriaAlunoCorrespondenteExisteDepois(
+		alunoId,
+		resource.data,
+		request.resource.data
+	  );
+
+	allow create: if
+	  criacaoAdministrativaAlunoBaseValida(
+		request.resource.data
+	  )
+	  && contadorMatriculasAlunosFoiAtualizado()
+	  && auditoriaAlunoCriadoCorrespondenteExisteDepois(
+		alunoId,
+		request.resource.data
+	  );
+
+	allow delete: if false;
     }
 
 
