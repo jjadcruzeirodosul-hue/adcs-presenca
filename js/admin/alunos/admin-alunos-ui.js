@@ -313,6 +313,59 @@ export function mostrarEstadoAlunos(
 }
 
 /**
+ * Alterna o estado ocupado do editor administrativo.
+ *
+ * Durante uma persistência:
+ * - bloqueia campos editáveis;
+ * - bloqueia checkbox;
+ * - bloqueia ações do formulário;
+ * - preserva naturalmente campos já desabilitados,
+ *   como a matrícula.
+ *
+ * @param {boolean} ocupado
+ */
+export function definirEditorAlunosOcupado(
+    ocupado
+) {
+    const elementos =
+        obterElementos();
+
+    const controles =
+        elementos.editor.querySelectorAll(
+            "input, select, textarea, button"
+        );
+
+	controles.forEach((controle) => {
+		if (ocupado === true) {
+			controle.dataset.disabledAntesPersistencia =
+				controle.disabled
+					? "true"
+					: "false";
+
+			controle.disabled = true;
+			return;
+		}
+
+		const estavaDesabilitado =
+			controle.dataset.disabledAntesPersistencia ===
+			"true";
+
+		controle.disabled =
+			estavaDesabilitado;
+
+		delete controle.dataset
+			.disabledAntesPersistencia;
+	});
+
+    elementos.editor.setAttribute(
+        "aria-busy",
+        ocupado === true
+            ? "true"
+            : "false"
+    );
+}
+
+/**
  * Cria ações superiores da listagem.
  *
  * @returns {HTMLElement}

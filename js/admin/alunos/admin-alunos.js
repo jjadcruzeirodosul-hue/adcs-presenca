@@ -33,6 +33,7 @@ import {
 } from "./admin-alunos-service.js";
 
 import {
+    definirEditorAlunosOcupado,
     initAdminAlunosUI,
     mostrarCarregamentoAlunos,
     mostrarErroAlunos,
@@ -297,6 +298,10 @@ async function criarNovoAlunoAdministrativo(
 
     persistenciaEmAndamento = true;
 
+    definirEditorAlunosOcupado(
+        true
+    );
+
     mostrarEstadoAlunos(
         "Criando aluno e emitindo matrícula...",
         "info"
@@ -398,6 +403,10 @@ async function criarNovoAlunoAdministrativo(
         );
     } finally {
         persistenciaEmAndamento = false;
+
+        definirEditorAlunosOcupado(
+            false
+        );
     }
 }
 
@@ -512,6 +521,10 @@ async function persistirEdicaoAluno(
 
     persistenciaEmAndamento = true;
 
+    definirEditorAlunosOcupado(
+        true
+    );
+
     mostrarEstadoAlunos(
         "Salvando alteração administrativa...",
         "info"
@@ -617,6 +630,10 @@ async function persistirEdicaoAluno(
         );
     } finally {
         persistenciaEmAndamento = false;
+
+        definirEditorAlunosOcupado(
+            false
+        );
     }
 }
 

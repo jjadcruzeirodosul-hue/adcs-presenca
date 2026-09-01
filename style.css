@@ -1480,6 +1480,121 @@ video {
     }
 }
 
+/* ==========================================================================
+   Administração — Gestão de Alunos
+   ========================================================================== */
+
+.admin-students-list {
+    display: grid;
+    margin-top: var(--space-5);
+    gap: var(--space-3);
+}
+
+.admin-students-list__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: var(--space-2);
+}
+
+.admin-students-list__item {
+    display: grid;
+    width: 100%;
+    padding: var(--space-4);
+    gap: var(--space-1);
+    color: var(--color-neutral-950);
+    background: var(--color-white);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-md);
+    text-align: left;
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.admin-students-list__item:hover:not(:disabled) {
+    border-color: var(--color-primary-600);
+    box-shadow: var(--shadow-sm);
+}
+
+.admin-students-list__item:focus-visible {
+    outline: 0.1875rem solid rgb(11 110 79 / 28%);
+    outline-offset: 0.125rem;
+}
+
+.admin-students-list__item:active:not(:disabled) {
+    transform: translateY(0.0625rem);
+}
+
+.admin-students-list__item strong {
+    overflow-wrap: anywhere;
+}
+
+.admin-students-list__item span {
+    overflow-wrap: anywhere;
+    color: var(--color-neutral-600);
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-relaxed);
+}
+
+.admin-student-detail,
+.admin-student-form {
+    padding: var(--space-5);
+    background: var(--color-primary-50);
+    border: 1px solid var(--color-primary-100);
+    border-radius: var(--radius-lg);
+}
+
+.admin-student-detail__title {
+    margin: 0 0 var(--space-4);
+    color: var(--color-primary-900);
+    font-size: var(--font-size-lg);
+}
+
+.admin-student-detail__row {
+    margin: var(--space-2) 0 0;
+    overflow-wrap: anywhere;
+    color: var(--color-neutral-700);
+    font-size: var(--font-size-sm);
+}
+
+.admin-student-detail__actions {
+    display: grid;
+    margin-top: var(--space-5);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+}
+
+#editorAdminAlunos[aria-busy="true"] {
+    cursor: wait;
+}
+
+#editorAdminAlunos[aria-busy="true"] .form-field,
+#editorAdminAlunos[aria-busy="true"] .admin-user-editor__group,
+#editorAdminAlunos[aria-busy="true"] .admin-user-editor__actions {
+    opacity: 0.72;
+}
+
+@media (max-width: 30rem) {
+    .admin-students-list__actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .admin-students-list__actions .button {
+        width: 100%;
+    }
+
+    .admin-student-detail,
+    .admin-student-form {
+        padding: var(--space-4);
+    }
+
+    .admin-student-detail__actions {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
