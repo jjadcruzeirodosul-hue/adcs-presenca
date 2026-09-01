@@ -38,6 +38,10 @@ import {
     mostrarEstadoAlunos
 } from "./admin-alunos-ui.js";
 
+import {
+    montarOperacaoAluno
+} from "./admin-alunos-operation.js";
+
 let moduloInicializado = false;
 let carregamentoEmAndamento = false;
 let alunoSelecionado = null;
@@ -283,7 +287,7 @@ function prepararNovoAlunoLocalmente(
 /**
  * Valida e prepara localmente a edição de um aluno.
  *
- * Não persiste dados.
+ * Monta a operação administrativa, mas não persiste dados.
  *
  * @param {{
  *     nome: string,
@@ -330,32 +334,62 @@ function prepararEdicaoAlunoLocalmente(
         return;
     }
 
-    console.info(
-        "[Admin][Alunos] Alteração de aluno preparada localmente.",
-        {
-            alunoId:
-                alunoSelecionado.id,
-
-            antes: {
-                nome:
-                    alunoSelecionado.nome || "",
-                faixa:
-                    alunoSelecionado.faixa || "",
-                ativo:
-                    alunoSelecionado.ativo === true
-            },
-
-            depois: {
+    const operacao =
+        montarOperacaoAluno(
+            alunoSelecionado,
+            {
                 nome,
                 faixa,
                 ativo
             }
+        );
+
+    if (!operacao) {
+        console.info(
+            "[Admin][Alunos] Nenhuma alteração funcional identificada.",
+            {
+                alunoId:
+                    alunoSelecionado.id
+            }
+        );
+
+        mostrarEstadoAlunos(
+            "Nenhuma alteração foi identificada.",
+            "info"
+        );
+
+        return;
+    }
+
+    console.info(
+        "[Admin][Alunos] Operação de aluno preparada localmente.",
+        {
+            alunoId:
+                operacao.alunoId,
+
+            operacaoId:
+                operacao.operacaoId,
+
+            eventoId:
+                operacao.eventoId,
+
+            acao:
+                operacao.acao,
+
+            camposAlterados:
+                operacao.camposAlterados,
+
+            before:
+                operacao.before,
+
+            after:
+                operacao.after
         }
     );
 
     mostrarEstadoAlunos(
-        "Alterações validadas localmente. " +
-        "Nenhuma alteração foi gravada.",
+        "Alterações validadas e operação administrativa " +
+        "montada localmente. Nenhuma alteração foi gravada.",
         "success"
     );
 }
