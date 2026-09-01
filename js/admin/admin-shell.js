@@ -36,7 +36,8 @@ let callbackDepoisAdministracao = null;
  * Inicializa a fundação administrativa.
  *
  * @param {{
- *     onAntesEntrarAdministracao?: () => Promise<void> | void
+ *     onAntesEntrarAdministracao?: () => Promise<void> | void,
+ *     onDepoisEntrarAdministracao?: () => Promise<void> | void
  * }} opcoes
  */
 export function initAdminShell(
@@ -145,18 +146,24 @@ function mostrarAreaOperacional() {
  */
 async function solicitarAreaAdministrativa() {
     if (!podeAcessarAdministracao()) {
-		console.warn(
-			"[Admin] Tentativa de acesso administrativo bloqueada por RBAC."
-		);
+        console.warn(
+            "[Admin] Tentativa de acesso administrativo bloqueada por RBAC."
+        );
 
-		atualizarAcessoAdministrativo();
+        atualizarAcessoAdministrativo();
 
-		return;
-	}
+        return;
+    }
 
     try {
-        if (callbackDepoisAdministracao) {
-            await callbackDepoisAdministracao();
+        /*
+         * Executa ações necessárias antes da transição para
+         * o contexto administrativo.
+         *
+         * Exemplo atual: encerramento seguro do scanner QR.
+         */
+        if (callbackAntesAdministracao) {
+            await callbackAntesAdministracao();
         }
 
         const elementos = obterElementos();
@@ -172,9 +179,15 @@ async function solicitarAreaAdministrativa() {
             operacaoAtiva: false
         });
 
-		if (callbackDepoisAdministracao) {
-			await callbackDepoisAdministracao();
-		}
+        /*
+         * Executa ações dependentes do contexto administrativo
+         * já autorizado e exibido.
+         *
+         * Exemplo atual: carregamento da Gestão de Usuários.
+         */
+        if (callbackDepoisAdministracao) {
+            await callbackDepoisAdministracao();
+        }
 
         console.info(
             "[Admin] Contexto administrativo inicializado com autorização válida."
