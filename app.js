@@ -60,6 +60,7 @@ import {
 } from "./js/admin/usuarios/admin-usuarios.js";
 
 import {
+    carregarAlunosAdministrativos,
     initAdminAlunos
 } from "./js/admin/alunos/admin-alunos.js";
 
@@ -112,6 +113,12 @@ function iniciarAplicacao() {
 
             onDepoisEntrarAdministracao: async () => {
                 await carregarUsuariosAdministrativos();
+            },
+
+            onModuloAdministrativoSelecionado: (modulo) => {
+                if (modulo === "alunos") {
+                    void carregarAlunosAdministrativos();
+                }
             }
         });
 

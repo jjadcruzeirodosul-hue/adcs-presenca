@@ -31,19 +31,22 @@ import {
 let moduloInicializado = false;
 let callbackAntesAdministracao = null;
 let callbackDepoisAdministracao = null;
+let callbackModuloAdministrativoSelecionado = null;
 
 /**
  * Inicializa a fundação administrativa.
  *
  * @param {{
  *     onAntesEntrarAdministracao?: () => Promise<void> | void,
- *     onDepoisEntrarAdministracao?: () => Promise<void> | void
+ *     onDepoisEntrarAdministracao?: () => Promise<void> | void,
+ *     onModuloAdministrativoSelecionado?: (modulo: string) => void
  * }} opcoes
  */
 export function initAdminShell(
     {
         onAntesEntrarAdministracao = null,
-        onDepoisEntrarAdministracao = null
+        onDepoisEntrarAdministracao = null,
+        onModuloAdministrativoSelecionado = null
     } = {}
 ) {
     if (moduloInicializado) {
@@ -58,6 +61,11 @@ export function initAdminShell(
     callbackDepoisAdministracao =
         typeof onDepoisEntrarAdministracao === "function"
             ? onDepoisEntrarAdministracao
+            : null;
+
+    callbackModuloAdministrativoSelecionado =
+        typeof onModuloAdministrativoSelecionado === "function"
+            ? onModuloAdministrativoSelecionado
             : null;
 
     const elementos = obterElementos();
@@ -76,7 +84,13 @@ export function initAdminShell(
         }
     );
 
-    initAdminNavigation();
+    initAdminNavigation({
+        onModuloSelecionado: (modulo) => {
+            if (callbackModuloAdministrativoSelecionado) {
+                callbackModuloAdministrativoSelecionado(modulo);
+            }
+        }
+    });
 
     resetAdminShell();
 
