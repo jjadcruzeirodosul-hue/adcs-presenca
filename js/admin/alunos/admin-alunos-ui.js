@@ -7,12 +7,11 @@
  * Administrativa de Alunos.
  *
  * Responsabilidades neste incremento:
- * - estado de carregamento;
- * - estado vazio;
- * - listagem de alunos;
- * - seleção de aluno;
- * - apresentação somente leitura;
- * - estado de erro.
+ * - estados visuais do módulo;
+ * - listagem e consulta de alunos;
+ * - formulário local de criação;
+ * - formulário local de edição;
+ * - coleta e validação estrutural de dados locais.
  *
  * Não conhece Firebase, Firestore, sessão ou Security Rules.
  *
@@ -23,7 +22,13 @@
 "use strict";
 
 let moduloInicializado = false;
+
 let callbackSelecionarAluno = null;
+let callbackNovoAluno = null;
+let callbackEditarAluno = null;
+let callbackPrepararNovoAluno = null;
+let callbackPrepararEdicaoAluno = null;
+let callbackCancelarEdicao = null;
 let callbackVoltarLista = null;
 
 /**
@@ -31,12 +36,33 @@ let callbackVoltarLista = null;
  *
  * @param {{
  *     onSelecionarAluno?: (alunoId: string) => void,
+ *     onNovoAluno?: () => void,
+ *     onEditarAluno?: () => void,
+ *     onPrepararNovoAluno?: (
+ *         dados: {
+ *             nome: string,
+ *             faixa: string
+ *         }
+ *     ) => void,
+ *     onPrepararEdicaoAluno?: (
+ *         dados: {
+ *             nome: string,
+ *             faixa: string,
+ *             ativo: boolean
+ *         }
+ *     ) => void,
+ *     onCancelarEdicao?: () => void,
  *     onVoltarLista?: () => void
  * }} opcoes
  */
 export function initAdminAlunosUI(
     {
         onSelecionarAluno = null,
+        onNovoAluno = null,
+        onEditarAluno = null,
+        onPrepararNovoAluno = null,
+        onPrepararEdicaoAluno = null,
+        onCancelarEdicao = null,
         onVoltarLista = null
     } = {}
 ) {
@@ -44,11 +70,34 @@ export function initAdminAlunosUI(
         return;
     }
 
-    obterElementos();
-
     callbackSelecionarAluno =
         typeof onSelecionarAluno === "function"
             ? onSelecionarAluno
+            : null;
+
+    callbackNovoAluno =
+        typeof onNovoAluno === "function"
+            ? onNovoAluno
+            : null;
+
+    callbackEditarAluno =
+        typeof onEditarAluno === "function"
+            ? onEditarAluno
+            : null;
+
+    callbackPrepararNovoAluno =
+        typeof onPrepararNovoAluno === "function"
+            ? onPrepararNovoAluno
+            : null;
+
+    callbackPrepararEdicaoAluno =
+        typeof onPrepararEdicaoAluno === "function"
+            ? onPrepararEdicaoAluno
+            : null;
+
+    callbackCancelarEdicao =
+        typeof onCancelarEdicao === "function"
+            ? onCancelarEdicao
             : null;
 
     callbackVoltarLista =
@@ -56,77 +105,115 @@ export function initAdminAlunosUI(
             ? onVoltarLista
             : null;
 
+    const elementos =
+        obterElementos();
+
+    elementos.editor.addEventListener(
+        "submit",
+        tratarSubmitEditor
+    );
+
+    elementos.editor.addEventListener(
+        "click",
+        tratarCliqueEditor
+    );
+
+    ocultarLoading(elementos);
+    ocultarLista(elementos);
+    ocultarEditor(elementos);
+    ocultarEstado(elementos);
+
     moduloInicializado = true;
 }
 
 /**
- * Apresenta o estado de carregamento da listagem.
+ * Exibe o estado de carregamento.
  */
 export function mostrarCarregamentoAlunos() {
-    const elementos = obterElementos();
+    const elementos =
+        obterElementos();
 
-    limparConteudo(elementos.conteudo);
+    ocultarEstado(elementos);
+    ocultarLista(elementos);
+    ocultarEditor(elementos);
 
-    elementos.estado.textContent =
-        "Carregando alunos...";
-
-    elementos.estado.className =
-        "feedback feedback--info";
-
-    elementos.estado.hidden = false;
+    elementos.loading.hidden = false;
 }
 
 /**
- * Apresenta o estado de listagem vazia.
+ * Exibe o estado de lista vazia.
  */
 export function mostrarListaVaziaAlunos() {
-    const elementos = obterElementos();
+    const elementos =
+        obterElementos();
 
-    limparConteudo(elementos.conteudo);
+    ocultarLoading(elementos);
+    ocultarLista(elementos);
+    ocultarEditor(elementos);
 
-    elementos.estado.textContent =
-        "Nenhum aluno cadastrado.";
+    const acoes =
+        criarAcoesLista();
 
-    elementos.estado.className =
-        "feedback feedback--info";
+    elementos.lista.replaceChildren(
+        acoes
+    );
 
-    elementos.estado.hidden = false;
+    elementos.lista.hidden = false;
+
+    mostrarEstadoAlunos(
+        "Nenhum aluno cadastrado foi encontrado.",
+        "info"
+    );
 }
 
 /**
- * Apresenta uma mensagem de erro.
+ * Exibe mensagem de erro.
  *
  * @param {string} mensagem
  */
 export function mostrarErroAlunos(mensagem) {
-    const elementos = obterElementos();
+    const elementos =
+        obterElementos();
 
-    elementos.estado.textContent =
-        mensagem;
+    ocultarLoading(elementos);
+    ocultarLista(elementos);
+    ocultarEditor(elementos);
 
-    elementos.estado.className =
-        "feedback feedback--erro";
-
-    elementos.estado.hidden = false;
+    mostrarEstadoAlunos(
+        mensagem,
+        "error"
+    );
 }
 
 /**
- * Renderiza a listagem administrativa de alunos.
+ * Renderiza a listagem administrativa.
  *
  * @param {Object[]} alunos
  */
 export function mostrarListaAlunos(alunos) {
-    const elementos = obterElementos();
+    const elementos =
+        obterElementos();
 
-    limparConteudo(elementos.conteudo);
+    ocultarLoading(elementos);
+    ocultarEstado(elementos);
+    ocultarEditor(elementos);
 
-    elementos.estado.hidden = true;
+    elementos.lista.replaceChildren();
 
-    const lista =
-        document.createElement("div");
+    const acoes =
+        criarAcoesLista();
 
-    lista.className =
-        "admin-students-list";
+    elementos.lista.appendChild(
+        acoes
+    );
+
+    if (
+        !Array.isArray(alunos) ||
+        alunos.length === 0
+    ) {
+        mostrarListaVaziaAlunos();
+        return;
+    }
 
     const fragmento =
         document.createDocumentFragment();
@@ -137,28 +224,139 @@ export function mostrarListaAlunos(alunos) {
         );
     });
 
-    lista.appendChild(fragmento);
-    elementos.conteudo.appendChild(lista);
+    elementos.lista.appendChild(fragmento);
+    elementos.lista.hidden = false;
 }
 
 /**
- * Apresenta os dados do aluno selecionado em modo somente leitura.
+ * Renderiza os dados do aluno selecionado.
  *
- * @param {{
- *     id: string,
- *     nome?: string,
- *     faixa?: string,
- *     matricula?: string,
- *     ativo?: boolean
- * }} aluno
+ * @param {Object} aluno
  */
 export function mostrarAlunoSelecionado(aluno) {
-    const elementos = obterElementos();
+    const elementos =
+        obterElementos();
 
-    limparConteudo(elementos.conteudo);
+    ocultarLoading(elementos);
+    ocultarEstado(elementos);
+    ocultarLista(elementos);
 
-    elementos.estado.hidden = true;
+    elementos.editor.replaceChildren(
+        criarDetalheAluno(aluno)
+    );
 
+    elementos.editor.hidden = false;
+}
+
+/**
+ * Mostra formulário local de criação.
+ */
+export function mostrarFormularioNovoAluno() {
+    const elementos =
+        obterElementos();
+
+    ocultarLoading(elementos);
+    ocultarEstado(elementos);
+    ocultarLista(elementos);
+
+    elementos.editor.replaceChildren(
+        criarFormularioNovoAluno()
+    );
+
+    elementos.editor.hidden = false;
+}
+
+/**
+ * Mostra formulário local de edição.
+ *
+ * @param {Object} aluno
+ */
+export function mostrarFormularioEdicaoAluno(
+    aluno
+) {
+    const elementos =
+        obterElementos();
+
+    ocultarLoading(elementos);
+    ocultarEstado(elementos);
+    ocultarLista(elementos);
+
+    elementos.editor.replaceChildren(
+        criarFormularioEdicaoAluno(
+            aluno
+        )
+    );
+
+    elementos.editor.hidden = false;
+}
+
+/**
+ * Exibe uma mensagem geral do módulo.
+ *
+ * @param {string} texto
+ * @param {"info" | "success" | "warning" | "error"} tipo
+ */
+export function mostrarEstadoAlunos(
+    texto,
+    tipo = "info"
+) {
+    const elementos =
+        obterElementos();
+
+    ocultarLoading(elementos);
+
+    elementos.estado.textContent = texto;
+    elementos.estado.className =
+        `feedback feedback--${tipo}`;
+
+    elementos.estado.hidden = false;
+}
+
+/**
+ * Cria ações superiores da listagem.
+ *
+ * @returns {HTMLElement}
+ */
+function criarAcoesLista() {
+    const acoes =
+        document.createElement("div");
+
+    acoes.className =
+        "admin-students-list__actions";
+
+    const botaoNovo =
+        document.createElement("button");
+
+    botaoNovo.type = "button";
+    botaoNovo.className =
+        "button button--primary";
+
+    botaoNovo.textContent =
+        "Novo aluno";
+
+    botaoNovo.addEventListener(
+        "click",
+        () => {
+            if (callbackNovoAluno) {
+                callbackNovoAluno();
+            }
+        }
+    );
+
+    acoes.appendChild(
+        botaoNovo
+    );
+
+    return acoes;
+}
+
+/**
+ * Cria o detalhe do aluno selecionado.
+ *
+ * @param {Object} aluno
+ * @returns {HTMLElement}
+ */
+function criarDetalheAluno(aluno) {
     const detalhe =
         document.createElement("section");
 
@@ -174,23 +372,16 @@ export function mostrarAlunoSelecionado(aluno) {
     titulo.textContent =
         aluno.nome || "Aluno sem nome";
 
-    detalhe.appendChild(titulo);
-
-    detalhe.appendChild(
+    detalhe.append(
+        titulo,
         criarCampoDetalhe(
             "Matrícula",
             aluno.matricula || "Não informada"
-        )
-    );
-
-    detalhe.appendChild(
+        ),
         criarCampoDetalhe(
             "Faixa",
             aluno.faixa || "Não informada"
-        )
-    );
-
-    detalhe.appendChild(
+        ),
         criarCampoDetalhe(
             "Status",
             aluno.ativo === true
@@ -199,49 +390,427 @@ export function mostrarAlunoSelecionado(aluno) {
         )
     );
 
+    const acoes =
+        document.createElement("div");
+
+    acoes.className =
+        "admin-student-detail__actions";
+
+    const botaoEditar =
+        document.createElement("button");
+
+    botaoEditar.type = "button";
+    botaoEditar.className =
+        "button button--primary";
+
+    botaoEditar.dataset.acaoEditor =
+        "editar";
+
+    botaoEditar.textContent =
+        "Editar";
+
     const botaoVoltar =
         document.createElement("button");
 
     botaoVoltar.type = "button";
-
     botaoVoltar.className =
-        "secondary-button";
+        "button button--secondary";
+
+    botaoVoltar.dataset.acaoEditor =
+        "voltar";
 
     botaoVoltar.textContent =
         "Voltar para a lista";
 
-    botaoVoltar.addEventListener(
-        "click",
-        () => {
-            if (callbackVoltarLista) {
-                callbackVoltarLista();
-            }
-        }
+    acoes.append(
+        botaoEditar,
+        botaoVoltar
     );
 
-    detalhe.appendChild(botaoVoltar);
+    detalhe.appendChild(
+        acoes
+    );
 
-    elementos.conteudo.appendChild(detalhe);
+    return detalhe;
 }
 
 /**
- * Cria um item selecionável da listagem.
+ * Cria formulário local para novo aluno.
+ *
+ * A matrícula não faz parte do formulário porque será
+ * definida futuramente pela transação autorizada.
+ *
+ * @returns {HTMLFormElement}
+ */
+function criarFormularioNovoAluno() {
+    const formulario =
+        document.createElement("form");
+
+    formulario.className =
+        "admin-student-form";
+
+    formulario.dataset.alunoEditor =
+        "novo";
+
+    const titulo =
+        document.createElement("h4");
+
+    titulo.className =
+        "admin-student-detail__title";
+
+    titulo.textContent =
+        "Novo aluno";
+
+    const ajuda =
+        document.createElement("p");
+
+    ajuda.className =
+        "form-field__help";
+
+    ajuda.textContent =
+        "A matrícula será gerada automaticamente " +
+        "quando o cadastro for persistido.";
+
+    const campoNome =
+        criarCampoTexto({
+            nome: "nome",
+            rotulo: "Nome",
+            valor: "",
+            obrigatorio: true,
+            autocomplete: "name"
+        });
+
+    const campoFaixa =
+        criarCampoTexto({
+            nome: "faixa",
+            rotulo: "Faixa",
+            valor: "",
+            obrigatorio: true,
+            autocomplete: "off"
+        });
+
+    const estadoInicial =
+        criarCampoDetalhe(
+            "Status inicial",
+            "Ativo"
+        );
+
+    const acoes =
+        criarAcoesFormulario(
+            "Preparar cadastro"
+        );
+
+    formulario.append(
+        titulo,
+        ajuda,
+        campoNome,
+        campoFaixa,
+        estadoInicial,
+        acoes
+    );
+
+    return formulario;
+}
+
+/**
+ * Cria formulário local de edição.
+ *
+ * @param {Object} aluno
+ * @returns {HTMLFormElement}
+ */
+function criarFormularioEdicaoAluno(
+    aluno
+) {
+    const formulario =
+        document.createElement("form");
+
+    formulario.className =
+        "admin-student-form";
+
+    formulario.dataset.alunoEditor =
+        "edicao";
+
+    const titulo =
+        document.createElement("h4");
+
+    titulo.className =
+        "admin-student-detail__title";
+
+    titulo.textContent =
+        "Editar aluno";
+
+    const matricula =
+        criarCampoTexto({
+            nome: "matricula",
+            rotulo: "Matrícula",
+            valor:
+                aluno.matricula || "",
+            obrigatorio: false,
+            desabilitado: true
+        });
+
+    const ajudaMatricula =
+        document.createElement("p");
+
+    ajudaMatricula.className =
+        "form-field__help";
+
+    ajudaMatricula.textContent =
+        "A matrícula é protegida e não pode ser alterada.";
+
+    const campoNome =
+        criarCampoTexto({
+            nome: "nome",
+            rotulo: "Nome",
+            valor:
+                aluno.nome || "",
+            obrigatorio: true,
+            autocomplete: "name"
+        });
+
+    const campoFaixa =
+        criarCampoTexto({
+            nome: "faixa",
+            rotulo: "Faixa",
+            valor:
+                aluno.faixa || "",
+            obrigatorio: true,
+            autocomplete: "off"
+        });
+
+    const campoAtivo =
+        criarCampoAtivo(
+            aluno.ativo === true
+        );
+
+    const acoes =
+        criarAcoesFormulario(
+            "Preparar alterações"
+        );
+
+    formulario.append(
+        titulo,
+        matricula,
+        ajudaMatricula,
+        campoNome,
+        campoFaixa,
+        campoAtivo,
+        acoes
+    );
+
+    return formulario;
+}
+
+/**
+ * Cria campo textual reutilizável.
  *
  * @param {{
- *     id: string,
- *     nome?: string,
- *     faixa?: string,
- *     matricula?: string,
- *     ativo?: boolean
- * }} aluno
+ *     nome: string,
+ *     rotulo: string,
+ *     valor: string,
+ *     obrigatorio?: boolean,
+ *     desabilitado?: boolean,
+ *     autocomplete?: string
+ * }} opcoes
  *
+ * @returns {HTMLElement}
+ */
+function criarCampoTexto(
+    {
+        nome,
+        rotulo,
+        valor,
+        obrigatorio = false,
+        desabilitado = false,
+        autocomplete = "off"
+    }
+) {
+    const campo =
+        document.createElement("div");
+
+    campo.className =
+        "form-field";
+
+    const label =
+        document.createElement("label");
+
+    label.className =
+        "form-field__label";
+
+    label.htmlFor =
+        `adminAluno_${nome}`;
+
+    label.textContent =
+        rotulo;
+
+    const input =
+        document.createElement("input");
+
+    input.id =
+        `adminAluno_${nome}`;
+
+    input.name =
+        nome;
+
+    input.type =
+        "text";
+
+    input.className =
+        "form-field__control";
+
+    input.value =
+        String(valor || "");
+
+    input.required =
+        obrigatorio;
+
+    input.disabled =
+        desabilitado;
+
+    input.autocomplete =
+        autocomplete;
+
+    campo.append(
+        label,
+        input
+    );
+
+    return campo;
+}
+
+/**
+ * Cria controle local do status operacional.
+ *
+ * @param {boolean} ativo
+ * @returns {HTMLElement}
+ */
+function criarCampoAtivo(ativo) {
+    const grupo =
+        document.createElement("fieldset");
+
+    grupo.className =
+        "admin-user-editor__group";
+
+    const legenda =
+        document.createElement("legend");
+
+    legenda.className =
+        "admin-user-editor__legend";
+
+    legenda.textContent =
+        "Estado operacional";
+
+    const label =
+        document.createElement("label");
+
+    label.className =
+        "admin-user-editor__option";
+
+    const input =
+        document.createElement("input");
+
+    input.type =
+        "checkbox";
+
+    input.name =
+        "ativo";
+
+    input.checked =
+        ativo;
+
+    const texto =
+        document.createElement("span");
+
+    texto.textContent =
+        input.checked
+            ? "Aluno ativo"
+            : "Aluno inativo";
+
+    input.addEventListener(
+        "change",
+        () => {
+            texto.textContent =
+                input.checked
+                    ? "Aluno ativo"
+                    : "Aluno inativo";
+        }
+    );
+
+    label.append(
+        input,
+        texto
+    );
+
+    grupo.append(
+        legenda,
+        label
+    );
+
+    return grupo;
+}
+
+/**
+ * Cria botões do formulário local.
+ *
+ * @param {string} textoPrincipal
+ * @returns {HTMLElement}
+ */
+function criarAcoesFormulario(
+    textoPrincipal
+) {
+    const acoes =
+        document.createElement("div");
+
+    acoes.className =
+        "admin-user-editor__actions";
+
+    const preparar =
+        document.createElement("button");
+
+    preparar.type =
+        "submit";
+
+    preparar.className =
+        "button button--primary";
+
+    preparar.textContent =
+        textoPrincipal;
+
+    const cancelar =
+        document.createElement("button");
+
+    cancelar.type =
+        "button";
+
+    cancelar.className =
+        "button button--secondary";
+
+    cancelar.dataset.acaoEditor =
+        "cancelar";
+
+    cancelar.textContent =
+        "Cancelar";
+
+    acoes.append(
+        preparar,
+        cancelar
+    );
+
+    return acoes;
+}
+
+/**
+ * Cria item clicável da listagem.
+ *
+ * @param {Object} aluno
  * @returns {HTMLButtonElement}
  */
 function criarItemAluno(aluno) {
     const botao =
         document.createElement("button");
 
-    botao.type = "button";
+    botao.type =
+        "button";
 
     botao.className =
         "admin-students-list__item";
@@ -255,14 +824,13 @@ function criarItemAluno(aluno) {
     const detalhes =
         document.createElement("span");
 
-    detalhes.textContent =
-        [
-            aluno.matricula || "Sem matrícula",
-            aluno.faixa || "Faixa não informada",
-            aluno.ativo === true
-                ? "Ativo"
-                : "Inativo"
-        ].join(" • ");
+    detalhes.textContent = [
+        aluno.matricula || "Sem matrícula",
+        aluno.faixa || "Faixa não informada",
+        aluno.ativo === true
+            ? "Ativo"
+            : "Inativo"
+    ].join(" • ");
 
     botao.append(
         nome,
@@ -284,21 +852,21 @@ function criarItemAluno(aluno) {
 }
 
 /**
- * Cria um campo visual de detalhe.
+ * Cria uma linha de detalhe.
  *
  * @param {string} rotulo
  * @param {string} valor
- * @returns {HTMLElement}
+ * @returns {HTMLParagraphElement}
  */
 function criarCampoDetalhe(
     rotulo,
     valor
 ) {
-    const campo =
+    const linha =
         document.createElement("p");
 
-    campo.className =
-        "admin-student-detail__field";
+    linha.className =
+        "admin-student-detail__row";
 
     const label =
         document.createElement("strong");
@@ -312,30 +880,193 @@ function criarCampoDetalhe(
     conteudo.textContent =
         valor;
 
-    campo.append(
+    linha.append(
         label,
         conteudo
     );
 
-    return campo;
+    return linha;
 }
 
 /**
- * Remove o conteúdo atual de um container.
+ * Processa submit dos formulários locais.
  *
- * @param {HTMLElement} elemento
+ * @param {SubmitEvent} evento
  */
-function limparConteudo(elemento) {
-    elemento.replaceChildren();
+function tratarSubmitEditor(evento) {
+    const formulario =
+        evento.target;
+
+    if (
+        !(formulario instanceof HTMLFormElement)
+    ) {
+        return;
+    }
+
+    const tipo =
+        formulario.dataset.alunoEditor;
+
+    if (
+        tipo !== "novo" &&
+        tipo !== "edicao"
+    ) {
+        return;
+    }
+
+    evento.preventDefault();
+
+    const nome =
+        formulario.querySelector(
+            'input[name="nome"]'
+        );
+
+    const faixa =
+        formulario.querySelector(
+            'input[name="faixa"]'
+        );
+
+    if (
+        !(nome instanceof HTMLInputElement) ||
+        !(faixa instanceof HTMLInputElement)
+    ) {
+        return;
+    }
+
+    if (
+        tipo === "novo" &&
+        callbackPrepararNovoAluno
+    ) {
+        callbackPrepararNovoAluno({
+            nome:
+                nome.value,
+
+            faixa:
+                faixa.value
+        });
+
+        return;
+    }
+
+    if (
+        tipo === "edicao" &&
+        callbackPrepararEdicaoAluno
+    ) {
+        const ativo =
+            formulario.querySelector(
+                'input[name="ativo"]'
+            );
+
+        callbackPrepararEdicaoAluno({
+            nome:
+                nome.value,
+
+            faixa:
+                faixa.value,
+
+            ativo:
+                ativo instanceof HTMLInputElement
+                    ? ativo.checked
+                    : false
+        });
+    }
 }
 
 /**
- * Obtém e valida os elementos estruturais do módulo.
+ * Processa ações auxiliares do editor.
+ *
+ * @param {MouseEvent} evento
+ */
+function tratarCliqueEditor(evento) {
+    const alvo =
+        evento.target instanceof Element
+            ? evento.target.closest(
+                "[data-acao-editor]"
+            )
+            : null;
+
+    if (
+        !(alvo instanceof HTMLButtonElement)
+    ) {
+        return;
+    }
+
+    const acao =
+        alvo.dataset.acaoEditor;
+
+    if (
+        acao === "editar" &&
+        callbackEditarAluno
+    ) {
+        callbackEditarAluno();
+        return;
+    }
+
+    if (
+        acao === "voltar" &&
+        callbackVoltarLista
+    ) {
+        callbackVoltarLista();
+        return;
+    }
+
+    if (
+        acao === "cancelar" &&
+        callbackCancelarEdicao
+    ) {
+        callbackCancelarEdicao();
+    }
+}
+
+/**
+ * Oculta o carregamento.
+ *
+ * @param {ReturnType<typeof obterElementos>} elementos
+ */
+function ocultarLoading(elementos) {
+    elementos.loading.hidden = true;
+}
+
+/**
+ * Oculta a listagem.
+ *
+ * @param {ReturnType<typeof obterElementos>} elementos
+ */
+function ocultarLista(elementos) {
+    elementos.lista.hidden = true;
+}
+
+/**
+ * Oculta o editor.
+ *
+ * @param {ReturnType<typeof obterElementos>} elementos
+ */
+function ocultarEditor(elementos) {
+    elementos.editor.replaceChildren();
+    elementos.editor.hidden = true;
+}
+
+/**
+ * Oculta o estado geral.
+ *
+ * @param {ReturnType<typeof obterElementos>} elementos
+ */
+function ocultarEstado(elementos) {
+    elementos.estado.textContent = "";
+    elementos.estado.className =
+        "feedback";
+
+    elementos.estado.hidden = true;
+}
+
+/**
+ * Obtém elementos estruturais do módulo.
  *
  * @returns {{
  *     painel: HTMLElement,
  *     estado: HTMLElement,
- *     conteudo: HTMLElement
+ *     loading: HTMLElement,
+ *     lista: HTMLElement,
+ *     editor: HTMLElement
  * }}
  */
 function obterElementos() {
@@ -349,9 +1080,19 @@ function obterElementos() {
             "estadoAdminAlunos"
         );
 
-    const conteudo =
+    const loading =
         document.getElementById(
-            "conteudoAdminAlunos"
+            "loadingAdminAlunos"
+        );
+
+    const lista =
+        document.getElementById(
+            "listaAdminAlunos"
+        );
+
+    const editor =
+        document.getElementById(
+            "editorAdminAlunos"
         );
 
     if (!painel) {
@@ -366,15 +1107,29 @@ function obterElementos() {
         );
     }
 
-    if (!conteudo) {
+    if (!loading) {
         throw new Error(
-            'O conteúdo "#conteudoAdminAlunos" não foi encontrado.'
+            'O loading "#loadingAdminAlunos" não foi encontrado.'
+        );
+    }
+
+    if (!lista) {
+        throw new Error(
+            'A lista "#listaAdminAlunos" não foi encontrada.'
+        );
+    }
+
+    if (!editor) {
+        throw new Error(
+            'O editor "#editorAdminAlunos" não foi encontrado.'
         );
     }
 
     return {
         painel,
         estado,
-        conteudo
+        loading,
+        lista,
+        editor
     };
 }

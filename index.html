@@ -773,12 +773,36 @@
 						></div>
 
 						<div
-							id="conteudoAdminAlunos"
-							class="admin-students-content"
-							aria-label="Gestão administrativa de alunos"
-						></div>
-					</section>
+							id="loadingAdminAlunos"
+							class="loading"
+							role="status"
+							aria-live="polite"
+							hidden
+						>
+							<span
+								class="loading__spinner"
+								aria-hidden="true"
+							></span>
 
+							<span>
+								Carregando alunos...
+							</span>
+						</div>
+
+						<div
+							id="listaAdminAlunos"
+							class="admin-students-list"
+							aria-label="Alunos cadastrados"
+							hidden
+						></div>
+
+						<section
+							id="editorAdminAlunos"
+							class="admin-students-editor"
+							aria-label="Cadastro e edição de aluno"
+							hidden
+						></section>
+					</section>
                     <section
                         id="painelAdminProfessores"
                         class="admin-module-placeholder"
