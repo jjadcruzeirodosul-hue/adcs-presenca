@@ -382,6 +382,13 @@ service cloud.firestore {
 		  && metadadosProfessorForamAtualizados(before, after);
 	}
 
+	function criacaoAdministrativaProfessorBaseValida(after) {
+	return ehAdmin()
+		  && estadoProfessorAdministrativoValido(after)
+		  && after.ativo == true
+		  && metadadosProfessorValidos(after);
+	}
+
 	/*
 	 * ============================================================
 	 * Validações de contadores/matriculasAlunos
