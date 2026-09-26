@@ -65,6 +65,10 @@ import {
 } from "./js/admin/alunos/admin-alunos.js";
 
 import {
+    initAdminProfessores
+} from "./js/admin/professores/admin-professores.js";
+
+import {
     initUI,
     limparFeedback,
     mostrarMensagem
@@ -122,8 +126,9 @@ function iniciarAplicacao() {
             }
         });
 
-        initAdminUsuarios();
+		initAdminUsuarios();
         initAdminAlunos();
+        initAdminProfessores();
 
         mostrarPainelLogin();
 
