@@ -550,7 +550,7 @@ function criarFormularioNovoAluno() {
 
     const acoes =
         criarAcoesFormulario(
-            "Preparar cadastro"
+            "Cadastrar aluno"
         );
 
     formulario.append(
