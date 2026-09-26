@@ -343,6 +343,45 @@ service cloud.firestore {
 		  || estadoProfessorAdministrativoValido(data);
 	}
 
+	function camposAdministraveisProfessorAlterados(before, after) {
+	return before.nome != after.nome
+		  || before.ativo != after.ativo;
+	}
+
+	function camposAlteradosProfessorPermitidos(before, after) {
+	return after.diff(before).affectedKeys().hasOnly([
+			"nome",
+			"ativo",
+			"atualizadoEm",
+			"atualizadoPor",
+			"ultimaOperacaoId"
+		  ]);
+	}
+
+	function metadadosProfessorValidos(after) {
+	return after.atualizadoEm == request.time
+		  && after.atualizadoPor == request.auth.uid
+		  && after.ultimaOperacaoId is string
+		  && after.ultimaOperacaoId.size() > 0;
+	}
+
+	function metadadosProfessorForamAtualizados(before, after) {
+	return after.diff(before).affectedKeys().hasAll([
+			"atualizadoEm",
+			"ultimaOperacaoId"
+		  ]);
+	}
+
+	function alteracaoAdministrativaProfessorBaseValida(before, after) {
+	return ehAdmin()
+		  && estadoProfessorAntesValido(before)
+		  && estadoProfessorAdministrativoValido(after)
+		  && camposAlteradosProfessorPermitidos(before, after)
+		  && camposAdministraveisProfessorAlterados(before, after)
+		  && metadadosProfessorValidos(after)
+		  && metadadosProfessorForamAtualizados(before, after);
+	}
+
 	/*
 	 * ============================================================
 	 * Validações de contadores/matriculasAlunos
