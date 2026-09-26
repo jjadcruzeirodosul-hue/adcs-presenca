@@ -29,9 +29,12 @@ import {
     initAdminProfessoresUI,
     mostrarCarregamentoProfessores,
     mostrarErroProfessores,
+    mostrarEstadoProfessores,
     mostrarListaProfessores,
     mostrarListaVaziaProfessores,
-    mostrarProfessorSelecionado
+    mostrarProfessorSelecionado,
+    mostrarFormularioEdicaoProfessor,
+    mostrarFormularioNovoProfessor
 } from "./admin-professores-ui.js";
 
 let moduloInicializado = false;
@@ -49,6 +52,21 @@ export function initAdminProfessores() {
     initAdminProfessoresUI({
         onSelecionarProfessor:
             selecionarProfessorAdministrativo,
+
+        onNovoProfessor:
+            iniciarNovoProfessor,
+
+        onEditarProfessor:
+            iniciarEdicaoProfessor,
+
+        onPrepararNovoProfessor:
+            prepararNovoProfessor,
+
+        onPrepararEdicaoProfessor:
+            prepararEdicaoProfessor,
+
+        onCancelarEdicao:
+            cancelarEdicaoProfessor,
 
         onVoltarLista:
             carregarProfessoresAdministrativos
@@ -159,6 +177,74 @@ async function selecionarProfessorAdministrativo(
             obterMensagemErroLeitura(erro)
         );
     }
+}
+
+function iniciarNovoProfessor() {
+    professorSelecionado = null;
+
+    mostrarFormularioNovoProfessor();
+}
+
+function iniciarEdicaoProfessor() {
+    if (!professorSelecionado) {
+        mostrarErroProfessores(
+            "Selecione um professor antes de editar."
+        );
+
+        return;
+    }
+
+    mostrarFormularioEdicaoProfessor(
+        professorSelecionado
+    );
+}
+
+function prepararNovoProfessor(dados) {
+    console.info(
+        "[Admin][Professores] Cadastro preparado localmente.",
+        dados
+    );
+
+	mostrarEstadoProfessores(
+		"Cadastro preparado localmente. A persistência será habilitada no próximo incremento.",
+		"info"
+	);
+}
+
+function prepararEdicaoProfessor(dados) {
+    if (!professorSelecionado) {
+        mostrarErroProfessores(
+            "Nenhum professor selecionado para edição."
+        );
+
+        return;
+    }
+
+    console.info(
+        "[Admin][Professores] Alteração preparada localmente.",
+        {
+            professorId:
+                professorSelecionado.id,
+            ...dados
+        }
+    );
+
+	mostrarEstadoProfessores(
+		"Alteração preparada localmente. A persistência será habilitada no próximo incremento.",
+		"info"
+	);
+}
+
+function cancelarEdicaoProfessor() {
+    if (professorSelecionado) {
+        mostrarProfessorSelecionado(
+            professorSelecionado
+        );
+
+        return;
+    }
+
+    void carregarProfessoresAdministrativos();
 }
 
 /**

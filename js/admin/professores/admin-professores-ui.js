@@ -1,18 +1,18 @@
-/**
+﻿/**
  * ============================================================
- * ADCS Presença
+ * ADCS PresenÃ§a
  * admin-professores-ui.js
  * ------------------------------------------------------------
- * Responsável exclusivamente pela interface da Gestão
+ * ResponsÃ¡vel exclusivamente pela interface da GestÃ£o
  * Administrativa de Professores.
  *
  * Responsabilidades neste incremento:
- * - inicialização estrutural da interface;
+ * - inicializaÃ§Ã£o estrutural da interface;
  * - estados de carregamento, lista vazia e erro;
- * - renderização da listagem administrativa;
- * - apresentação do professor selecionado.
+ * - renderizaÃ§Ã£o da listagem administrativa;
+ * - apresentaÃ§Ã£o do professor selecionado.
  *
- * Não conhece Firebase, Firestore, sessão ou Security Rules.
+ * NÃ£o conhece Firebase, Firestore, sessÃ£o ou Security Rules.
  *
  * Conforme DEVSTD-001.
  * ============================================================
@@ -22,6 +22,11 @@
 
 let moduloInicializado = false;
 let callbackSelecionarProfessor = null;
+let callbackNovoProfessor = null;
+let callbackEditarProfessor = null;
+let callbackPrepararNovoProfessor = null;
+let callbackPrepararEdicaoProfessor = null;
+let callbackCancelarEdicao = null;
 let callbackVoltarLista = null;
 
 /**
@@ -34,6 +39,11 @@ let callbackVoltarLista = null;
 export function initAdminProfessoresUI(
     {
         onSelecionarProfessor = null,
+        onNovoProfessor = null,
+        onEditarProfessor = null,
+        onPrepararNovoProfessor = null,
+        onPrepararEdicaoProfessor = null,
+        onCancelarEdicao = null,
         onVoltarLista = null
     } = {}
 ) {
@@ -46,6 +56,31 @@ export function initAdminProfessoresUI(
             ? onSelecionarProfessor
             : null;
 
+    callbackNovoProfessor =
+        typeof onNovoProfessor === "function"
+            ? onNovoProfessor
+            : null;
+
+    callbackEditarProfessor =
+        typeof onEditarProfessor === "function"
+            ? onEditarProfessor
+            : null;
+
+    callbackPrepararNovoProfessor =
+        typeof onPrepararNovoProfessor === "function"
+            ? onPrepararNovoProfessor
+            : null;
+
+    callbackPrepararEdicaoProfessor =
+        typeof onPrepararEdicaoProfessor === "function"
+            ? onPrepararEdicaoProfessor
+            : null;
+
+    callbackCancelarEdicao =
+        typeof onCancelarEdicao === "function"
+            ? onCancelarEdicao
+            : null;
+
     callbackVoltarLista =
         typeof onVoltarLista === "function"
             ? onVoltarLista
@@ -53,6 +88,16 @@ export function initAdminProfessoresUI(
 
     const elementos =
         obterElementos();
+
+    elementos.editor.addEventListener(
+        "submit",
+        tratarSubmitEditor
+    );
+
+    elementos.editor.addEventListener(
+        "click",
+        tratarCliqueEditor
+    );
 
     ocultarLoading(elementos);
     ocultarLista(elementos);
@@ -110,7 +155,7 @@ export function mostrarListaVaziaProfessores() {
 }
 
 /**
- * Exibe erro geral do módulo.
+ * Exibe erro geral do mÃ³dulo.
  *
  * @param {string} mensagem
  */
@@ -140,11 +185,31 @@ export function mostrarListaProfessores(
 
     elementos.lista.replaceChildren();
 
+    const acoes =
+        criarAcoesLista();
+
+    elementos.lista.appendChild(
+        acoes
+    );
+
     if (
         !Array.isArray(professores) ||
         professores.length === 0
     ) {
-        mostrarListaVaziaProfessores();
+        const mensagem =
+            document.createElement("p");
+
+        mensagem.className =
+            "admin-students-list__empty";
+
+        mensagem.textContent =
+            "Nenhum professor cadastrado.";
+
+        elementos.lista.appendChild(
+            mensagem
+        );
+
+        elementos.lista.hidden = false;
         return;
     }
 
@@ -186,8 +251,42 @@ export function mostrarProfessorSelecionado(
     elementos.editor.hidden = false;
 }
 
+export function mostrarFormularioNovoProfessor() {
+    const elementos =
+        obterElementos();
+
+    ocultarLoading(elementos);
+    ocultarEstado(elementos);
+    ocultarLista(elementos);
+
+    elementos.editor.replaceChildren(
+        criarFormularioNovoProfessor()
+    );
+
+    elementos.editor.hidden = false;
+}
+
+export function mostrarFormularioEdicaoProfessor(
+    professor
+) {
+    const elementos =
+        obterElementos();
+
+    ocultarLoading(elementos);
+    ocultarEstado(elementos);
+    ocultarLista(elementos);
+
+    elementos.editor.replaceChildren(
+        criarFormularioEdicaoProfessor(
+            professor
+        )
+    );
+
+    elementos.editor.hidden = false;
+}
+
 /**
- * Exibe uma mensagem geral do módulo.
+ * Exibe uma mensagem geral do mÃ³dulo.
  *
  * @param {string} texto
  * @param {"info" | "success" | "warning" | "error"} tipo
@@ -212,8 +311,240 @@ export function mostrarEstadoProfessores(
     elementos.estado.hidden = false;
 }
 
+function criarAcoesLista() {
+    const acoes =
+        document.createElement("div");
+
+    acoes.className =
+        "admin-user-editor__actions";
+
+    const novo =
+        document.createElement("button");
+
+    novo.type =
+        "button";
+
+    novo.className =
+        "button button--primary";
+
+    novo.textContent =
+        "Novo professor";
+
+    novo.addEventListener(
+        "click",
+        () => {
+            if (callbackNovoProfessor) {
+                callbackNovoProfessor();
+            }
+        }
+    );
+
+    acoes.appendChild(
+        novo
+    );
+
+    return acoes;
+}
+
+function criarFormularioNovoProfessor() {
+    const formulario =
+        document.createElement("form");
+
+    formulario.className =
+        "admin-student-form";
+
+    formulario.dataset.professorEditor =
+        "novo";
+
+    const titulo =
+        document.createElement("h4");
+
+    titulo.className =
+        "admin-student-detail__title";
+
+    titulo.textContent =
+        "Novo professor";
+
+    const campoNome =
+        criarCampoTexto({
+            nome: "nome",
+            rotulo: "Nome",
+            valor: "",
+            obrigatorio: true,
+            autocomplete: "name"
+        });
+
+    const estadoInicial =
+        criarCampoDetalhe(
+            "Status inicial",
+            "Ativo"
+        );
+
+    const acoes =
+        criarAcoesFormulario(
+            "Preparar cadastro"
+        );
+
+    formulario.append(
+        titulo,
+        campoNome,
+        estadoInicial,
+        acoes
+    );
+
+    return formulario;
+}
+
+function criarFormularioEdicaoProfessor(
+    professor
+) {
+    const formulario =
+        document.createElement("form");
+
+    formulario.className =
+        "admin-student-form";
+
+    formulario.dataset.professorEditor =
+        "edicao";
+
+    const titulo =
+        document.createElement("h4");
+
+    titulo.className =
+        "admin-student-detail__title";
+
+    titulo.textContent =
+        "Editar professor";
+
+    const campoNome =
+        criarCampoTexto({
+            nome: "nome",
+            rotulo: "Nome",
+            valor:
+                professor.nome || "",
+            obrigatorio: true,
+            autocomplete: "name"
+        });
+
+    const acoes =
+        criarAcoesFormulario(
+            "Preparar alteraÃ§Ãµes"
+        );
+
+    formulario.append(
+        titulo,
+        campoNome,
+        acoes
+    );
+
+    return formulario;
+}
+
+function criarCampoTexto(
+    {
+        nome,
+        rotulo,
+        valor,
+        obrigatorio = false,
+        autocomplete = "off"
+    }
+) {
+    const campo =
+        document.createElement("div");
+
+    campo.className =
+        "form-field";
+
+    const label =
+        document.createElement("label");
+
+    label.className =
+        "form-field__label";
+
+    label.htmlFor =
+        `adminProfessor_${nome}`;
+
+    label.textContent =
+        rotulo;
+
+    const input =
+        document.createElement("input");
+
+    input.id =
+        `adminProfessor_${nome}`;
+
+    input.name =
+        nome;
+
+    input.type =
+        "text";
+
+    input.className =
+        "form-field__control";
+
+    input.value =
+        String(valor || "");
+
+    input.required =
+        obrigatorio;
+
+    input.autocomplete =
+        autocomplete;
+
+    campo.append(
+        label,
+        input
+    );
+
+    return campo;
+}
+
+function criarAcoesFormulario(
+    textoPrincipal
+) {
+    const acoes =
+        document.createElement("div");
+
+    acoes.className =
+        "admin-user-editor__actions";
+
+    const preparar =
+        document.createElement("button");
+
+    preparar.type =
+        "submit";
+
+    preparar.className =
+        "button button--primary";
+
+    preparar.textContent =
+        textoPrincipal;
+
+    const cancelar =
+        document.createElement("button");
+
+    cancelar.type =
+        "button";
+
+    cancelar.className =
+        "button button--secondary";
+
+    cancelar.dataset.acaoEditor =
+        "cancelar";
+
+    cancelar.textContent =
+        "Cancelar";
+
+    acoes.append(
+        preparar,
+        cancelar
+    );
+
+    return acoes;
+}
+
 /**
- * Cria item clicável da listagem.
+ * Cria item clicÃ¡vel da listagem.
  *
  * @param {Object} professor
  * @returns {HTMLButtonElement}
@@ -265,7 +596,7 @@ function criarItemProfessor(professor) {
 /**
  * Cria o detalhe do professor selecionado.
  *
- * Não expõe campos técnicos administrativos.
+ * NÃ£o expÃµe campos tÃ©cnicos administrativos.
  *
  * @param {Object} professor
  * @returns {HTMLElement}
@@ -305,6 +636,21 @@ function criarDetalheProfessor(
     acoes.className =
         "admin-student-detail__actions";
 
+    const botaoEditar =
+        document.createElement("button");
+
+    botaoEditar.type =
+        "button";
+
+    botaoEditar.className =
+        "button button--primary";
+
+    botaoEditar.dataset.acaoEditor =
+        "editar";
+
+    botaoEditar.textContent =
+        "Editar";
+
     const botaoVoltar =
         document.createElement("button");
 
@@ -317,16 +663,11 @@ function criarDetalheProfessor(
     botaoVoltar.textContent =
         "Voltar para a lista";
 
-    botaoVoltar.addEventListener(
-        "click",
-        () => {
-            if (callbackVoltarLista) {
-                callbackVoltarLista();
-            }
-        }
-    );
+    botaoVoltar.dataset.acaoEditor =
+        "voltar";
 
-    acoes.appendChild(
+    acoes.append(
+        botaoEditar,
         botaoVoltar
     );
 
@@ -374,8 +715,107 @@ function criarCampoDetalhe(
     return linha;
 }
 
+function tratarSubmitEditor(evento) {
+    const formulario =
+        evento.target;
+
+    if (
+        !(formulario instanceof HTMLFormElement)
+    ) {
+        return;
+    }
+
+    const tipo =
+        formulario.dataset.professorEditor;
+
+    if (
+        tipo !== "novo" &&
+        tipo !== "edicao"
+    ) {
+        return;
+    }
+
+    evento.preventDefault();
+
+    const nome =
+        formulario.querySelector(
+            'input[name="nome"]'
+        );
+
+    if (!(nome instanceof HTMLInputElement)) {
+        return;
+    }
+
+    const nomeNormalizado =
+        nome.value.trim();
+
+    if (nomeNormalizado === "") {
+        nome.focus();
+        return;
+    }
+
+    if (
+        tipo === "novo" &&
+        callbackPrepararNovoProfessor
+    ) {
+        callbackPrepararNovoProfessor({
+            nome: nomeNormalizado
+        });
+
+        return;
+    }
+
+	if (
+		tipo === "edicao" &&
+		callbackPrepararEdicaoProfessor
+	) {
+		callbackPrepararEdicaoProfessor({
+			nome: nomeNormalizado
+		});
+	}
+}
+
+function tratarCliqueEditor(evento) {
+    const alvo =
+        evento.target instanceof Element
+            ? evento.target.closest(
+                "[data-acao-editor]"
+            )
+            : null;
+
+    if (!(alvo instanceof HTMLButtonElement)) {
+        return;
+    }
+
+    const acao =
+        alvo.dataset.acaoEditor;
+
+    if (
+        acao === "editar" &&
+        callbackEditarProfessor
+    ) {
+        callbackEditarProfessor();
+        return;
+    }
+
+    if (
+        acao === "voltar" &&
+        callbackVoltarLista
+    ) {
+        callbackVoltarLista();
+        return;
+    }
+
+    if (
+        acao === "cancelar" &&
+        callbackCancelarEdicao
+    ) {
+        callbackCancelarEdicao();
+    }
+}
+
 /**
- * Obtém e valida os elementos estruturais do módulo.
+ * ObtÃ©m e valida os elementos estruturais do mÃ³dulo.
  *
  * @returns {{
  *     estado: HTMLElement,
@@ -407,25 +847,25 @@ function obterElementos() {
 
     if (!estado) {
         throw new Error(
-            'O elemento "#estadoAdminProfessores" não foi encontrado.'
+            'O elemento "#estadoAdminProfessores" nÃ£o foi encontrado.'
         );
     }
 
     if (!loading) {
         throw new Error(
-            'O elemento "#loadingAdminProfessores" não foi encontrado.'
+            'O elemento "#loadingAdminProfessores" nÃ£o foi encontrado.'
         );
     }
 
     if (!lista) {
         throw new Error(
-            'O elemento "#listaAdminProfessores" não foi encontrado.'
+            'O elemento "#listaAdminProfessores" nÃ£o foi encontrado.'
         );
     }
 
     if (!editor) {
         throw new Error(
-            'O elemento "#editorAdminProfessores" não foi encontrado.'
+            'O elemento "#editorAdminProfessores" nÃ£o foi encontrado.'
         );
     }
 
