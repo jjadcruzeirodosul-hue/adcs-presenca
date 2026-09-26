@@ -577,6 +577,13 @@ service cloud.firestore {
       return /databases/$(database)/documents/professores/$(professorId);
     }
 
+    function professorAtivoExiste(professorId) {
+      let caminho = caminhoProfessor(professorId);
+
+      return exists(caminho)
+        && get(caminho).data.ativo == true;
+    }
+
     /*
      * ============================================================
      * Contrato da auditoria administrativa
@@ -1718,6 +1725,9 @@ service cloud.firestore {
         possuiAcessoOperacional()
         && request.resource.data.alunoId is string
         && request.resource.data.professorId is string
+        && professorAtivoExiste(
+          request.resource.data.professorId
+        )
         && request.resource.data.matricula is string
         && request.resource.data.nomeAluno is string
         && request.resource.data.nomeProfessor is string
