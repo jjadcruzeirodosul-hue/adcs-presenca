@@ -985,6 +985,108 @@ service cloud.firestore {
         );
     }
 
+    /*
+     * ============================================================
+     * Coerência da auditoria de PROFESSOR
+     * ============================================================
+     */
+
+    function auditoriaProfessorCamposAlteradosValidos(
+      evento,
+      before,
+      after
+    ) {
+      return evento.camposAlterados.size() >= 1
+        && evento.camposAlterados.size() <= 2
+        && evento.camposAlterados.toSet().size()
+          == evento.camposAlterados.size()
+        && evento.camposAlterados.toSet().hasOnly([
+          "nome",
+          "ativo"
+        ])
+        && evento.before is map
+        && evento.after is map
+
+        && evento.before.keys().hasAll(
+          evento.camposAlterados
+        )
+        && evento.before.keys().hasOnly(
+          evento.camposAlterados
+        )
+
+        && evento.after.keys().hasAll(
+          evento.camposAlterados
+        )
+        && evento.after.keys().hasOnly(
+          evento.camposAlterados
+        )
+
+        && (
+          (before.nome != after.nome)
+          == ("nome" in evento.camposAlterados)
+        )
+        && (
+          (before.ativo != after.ativo)
+          == ("ativo" in evento.camposAlterados)
+        )
+
+        && (
+          !("nome" in evento.camposAlterados)
+          || (
+            evento.before.nome == before.nome
+            && evento.after.nome == after.nome
+          )
+        )
+        && (
+          !("ativo" in evento.camposAlterados)
+          || (
+            evento.before.ativo == before.ativo
+            && evento.after.ativo == after.ativo
+          )
+        );
+    }
+
+    function auditoriaProfessorAcaoValida(
+      evento,
+      before,
+      after
+    ) {
+      return (
+          before.nome == after.nome
+          && before.ativo == false
+          && after.ativo == true
+          && evento.acao == "PROFESSOR_ATIVADO"
+        )
+        ||
+        (
+          before.nome == after.nome
+          && before.ativo == true
+          && after.ativo == false
+          && evento.acao == "PROFESSOR_DESATIVADO"
+        )
+        ||
+        (
+          before.nome != after.nome
+          && evento.acao == "PROFESSOR_ATUALIZADO"
+        );
+    }
+
+    function auditoriaCoerenteComAlteracaoProfessor(
+      evento,
+      before,
+      after
+    ) {
+      return auditoriaProfessorCamposAlteradosValidos(
+          evento,
+          before,
+          after
+        )
+        && auditoriaProfessorAcaoValida(
+          evento,
+          before,
+          after
+        );
+    }
 
     /*
      * ============================================================
@@ -1112,6 +1214,94 @@ service cloud.firestore {
 		);
 	}
 
+	/*
+	* ============================================================
+	* Validação cruzada:
+	* professor UPDATE → auditoria CREATE
+	* ============================================================
+	*/
+
+	function auditoriaProfessorCorrespondenteValida(
+	caminho,
+	professorId,
+	before,
+	after
+	) {
+	let evento = getAfter(caminho).data;
+
+	return auditoriaPossuiCamposObrigatorios(
+			evento
+		  )
+		  && auditoriaPossuiTiposValidos(
+			evento
+		  )
+		  && auditoriaProfessorPossuiValoresControlados(
+			evento
+		  )
+		  && evento.operacaoId
+			== after.ultimaOperacaoId
+		  && evento.entidadeId
+			== professorId
+		  && auditoriaCoerenteComAlteracaoProfessor(
+			evento,
+			before,
+			after
+		  );
+	}
+
+	function auditoriaProfessorCorrespondenteExisteDepois(
+	professorId,
+	before,
+	after
+	) {
+	let caminho = caminhoAuditoriaProfessor(
+		  after.ultimaOperacaoId,
+		  professorId
+	);
+
+	return !exists(caminho)
+		  && existsAfter(caminho)
+		  && auditoriaProfessorCorrespondenteValida(
+			caminho,
+			professorId,
+			before,
+			after
+		  );
+	}
+
+	/*
+	* ============================================================
+	* Validação cruzada:
+	* professor CREATE → auditoria CREATE
+	* ============================================================
+	*/
+
+	function auditoriaProfessorCriadoCorrespondenteExisteDepois(
+	professorId,
+	professor
+	) {
+	let caminho =
+		  caminhoAuditoriaProfessor(
+			professor.ultimaOperacaoId,
+			professorId
+		  );
+
+	let evento = getAfter(caminho).data;
+
+	return !exists(caminho)
+		  && existsAfter(caminho)
+		  && auditoriaPossuiCamposObrigatorios(evento)
+		  && auditoriaPossuiTiposValidos(evento)
+		  && auditoriaProfessorPossuiValoresControlados(evento)
+		  && evento.acao == "PROFESSOR_CRIADO"
+		  && evento.operacaoId == professor.ultimaOperacaoId
+		  && evento.entidadeId == professorId
+		  && evento.autorUid == request.auth.uid
+		  && evento.ocorridoEm == request.time
+		  && evento.before == null
+		  && evento.after is map;
+	}
+
 	function auditoriaAlunoCriadoCorrespondenteExisteDepois(
 	  alunoId,
 	  aluno
@@ -1200,6 +1390,59 @@ service cloud.firestore {
 		);
 	}
 
+	/*
+	* ============================================================
+	* Validação cruzada:
+	* auditoria CREATE → professor CREATE/UPDATE
+	* ============================================================
+	*/
+
+	function auditoriaCriacaoProfessorValida(evento) {
+	let caminho = caminhoProfessor(evento.entidadeId);
+	let professor = getAfter(caminho).data;
+
+	return evento.acao == "PROFESSOR_CRIADO"
+		  && !exists(caminho)
+		  && existsAfter(caminho)
+		  && estadoProfessorAdministrativoValido(professor)
+		  && professor.ativo == true
+		  && professor.ultimaOperacaoId == evento.operacaoId
+		  && professor.atualizadoPor == request.auth.uid
+		  && professor.atualizadoEm == request.time
+		  && evento.before == null
+		  && evento.after is map;
+	}
+
+	function professorCorrespondenteAtualizadoValido(evento) {
+	let caminho = caminhoProfessor(evento.entidadeId);
+	let before = get(caminho).data;
+	let after = getAfter(caminho).data;
+
+	return exists(caminho)
+		  && existsAfter(caminho)
+		  && alteracaoAdministrativaProfessorBaseValida(
+			before,
+			after
+		  )
+		  && after.ultimaOperacaoId == evento.operacaoId
+		  && auditoriaCoerenteComAlteracaoProfessor(
+			evento,
+			before,
+			after
+		  );
+	}
+
+	function professorCorrespondenteFoiAlterado(evento) {
+	return evento.acao == "PROFESSOR_CRIADO"
+		  ? auditoriaCriacaoProfessorValida(evento)
+		  : (
+				  evento.acao == "PROFESSOR_ATUALIZADO"
+				  || evento.acao == "PROFESSOR_ATIVADO"
+				  || evento.acao == "PROFESSOR_DESATIVADO"
+			)
+			? professorCorrespondenteAtualizadoValido(evento)
+			: false;
+	}
 
     /*
      * ============================================================
@@ -1307,17 +1550,31 @@ service cloud.firestore {
 			: (
 				request.resource.data.entidade == "ALUNO"
 				? (
-					ehAdmin()
-					&& eventoIdAlunoValido(
-					  eventoId,
-					  request.resource.data
-					)
-					&& alunoCorrespondenteFoiAlterado(
-					  request.resource.data
-					)
-				  )
-				: false
-			  );
+					  ehAdmin()
+					  && eventoIdAlunoValido(
+						eventoId,
+						request.resource.data
+					  )
+					  && alunoCorrespondenteFoiAlterado(
+						request.resource.data
+					  )
+				)
+				: (
+					  request.resource.data.entidade == "PROFESSOR"
+					  ? (
+							  ehAdmin()
+							  && eventoIdProfessorValido(
+								eventoId,
+								request.resource.data
+							  )
+							  && professorCorrespondenteFoiAlterado(
+								request.resource.data
+							  )
+						)
+					  : false
+				)
+			);
+
       /*
        * Nesta etapa a auditoria não é exposta para leitura.
        */
@@ -1349,7 +1606,27 @@ service cloud.firestore {
 
     match /professores/{professorId} {
       allow read: if possuiAcessoOperacional();
-      allow create, update, delete: if false;
+      allow create: if
+        criacaoAdministrativaProfessorBaseValida(
+          request.resource.data
+        )
+        && auditoriaProfessorCriadoCorrespondenteExisteDepois(
+          professorId,
+          request.resource.data
+        );
+
+      allow update: if
+        alteracaoAdministrativaProfessorBaseValida(
+          resource.data,
+          request.resource.data
+        )
+        && auditoriaProfessorCorrespondenteExisteDepois(
+          professorId,
+          resource.data,
+          request.resource.data
+        );
+
+      allow delete: if false;
     }
 
 
