@@ -34,14 +34,24 @@ const MODULOS_ADMINISTRATIVOS = {
 };
 
 let moduloInicializado = false;
+let callbackModuloSelecionado = null;
 
 /**
  * Inicializa a navegação estrutural do Painel Administrativo.
  */
-export function initAdminNavigation() {
+export function initAdminNavigation(
+    {
+        onModuloSelecionado = null
+    } = {}
+) {
     if (moduloInicializado) {
         return;
     }
+
+    callbackModuloSelecionado =
+        typeof onModuloSelecionado === "function"
+            ? onModuloSelecionado
+            : null;
 
     Object.entries(
         MODULOS_ADMINISTRATIVOS
@@ -104,6 +114,10 @@ export function selecionarModuloAdministrativo(modulo) {
 
         painel.hidden = !ativo;
     });
+
+    if (callbackModuloSelecionado) {
+        callbackModuloSelecionado(modulo);
+    }
 
     console.info(
         "[Admin] Módulo estrutural selecionado.",
