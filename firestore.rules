@@ -548,6 +548,27 @@ service cloud.firestore {
       return /databases/$(database)/documents/alunos/$(alunoId);
     }
 
+    function eventoIdProfessor(operacaoId, professorId) {
+      return operacaoId
+        + "__PROFESSOR__"
+        + professorId;
+    }
+
+    function caminhoAuditoriaProfessor(
+      operacaoId,
+      professorId
+    ) {
+      let eventoId = eventoIdProfessor(
+        operacaoId,
+        professorId
+      );
+
+      return /databases/$(database)/documents/auditoriaAdministrativa/$(eventoId);
+    }
+
+    function caminhoProfessor(professorId) {
+      return /databases/$(database)/documents/professores/$(professorId);
+    }
 
     /*
      * ============================================================
@@ -650,6 +671,26 @@ service cloud.firestore {
         );
     }
 
+    function auditoriaProfessorPossuiValoresControlados(data) {
+      return data.entidade == "PROFESSOR"
+        && data.autorUid == request.auth.uid
+        && data.ocorridoEm == request.time
+        && data.versaoSchema == 1
+        && (
+          data.acao == "PROFESSOR_CRIADO"
+          || data.acao == "PROFESSOR_ATUALIZADO"
+          || data.acao == "PROFESSOR_ATIVADO"
+          || data.acao == "PROFESSOR_DESATIVADO"
+        );
+    }
+
+    function eventoIdProfessorValido(eventoId, data) {
+      return eventoId
+        == eventoIdProfessor(
+          data.operacaoId,
+          data.entidadeId
+        );
+    }
 
     /*
      * ============================================================
