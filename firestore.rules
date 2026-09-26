@@ -282,6 +282,68 @@ service cloud.firestore {
 	}
 
 	/*
+	* ============================================================
+	* Validações de professores/{professorId}
+	* ============================================================
+	*
+	* S4-005
+	*
+	* O professor pode existir em dois estados físicos:
+	*
+	* 1. legado:
+	*    { nome, ativo }
+	*
+	* 2. contrato administrativo S4-005:
+	*    { nome, ativo, atualizadoEm, atualizadoPor, ultimaOperacaoId }
+	*
+	* Não haverá backfill obrigatório.
+	*/
+
+	function estadoProfessorLegadoValido(data) {
+	return data.keys().hasAll([
+			"nome",
+			"ativo"
+		  ])
+		  && data.keys().hasOnly([
+			"nome",
+			"ativo"
+		  ])
+		  && data.nome is string
+		  && data.nome.size() > 0
+		  && data.ativo is bool;
+	}
+
+	function estadoProfessorAdministrativoValido(data) {
+	return data.keys().hasAll([
+			"nome",
+			"ativo",
+			"atualizadoEm",
+			"atualizadoPor",
+			"ultimaOperacaoId"
+		  ])
+		  && data.keys().hasOnly([
+			"nome",
+			"ativo",
+			"atualizadoEm",
+			"atualizadoPor",
+			"ultimaOperacaoId"
+		  ])
+		  && data.nome is string
+		  && data.nome.size() > 0
+		  && data.ativo is bool
+		  && data.atualizadoEm is timestamp
+		  && data.atualizadoPor is string
+		  && data.atualizadoPor.size() > 0
+		  && data.ultimaOperacaoId is string
+		  && data.ultimaOperacaoId.size() > 0;
+	}
+
+	function estadoProfessorAntesValido(data) {
+	return estadoProfessorLegadoValido(data)
+		  || estadoProfessorAdministrativoValido(data);
+	}
+
+	/*
 	 * ============================================================
 	 * Validações de contadores/matriculasAlunos
 	 * ============================================================
