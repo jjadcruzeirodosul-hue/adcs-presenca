@@ -65,6 +65,7 @@ import {
 } from "./js/admin/alunos/admin-alunos.js";
 
 import {
+    carregarProfessoresAdministrativos,
     initAdminProfessores
 } from "./js/admin/professores/admin-professores.js";
 
@@ -122,6 +123,11 @@ function iniciarAplicacao() {
             onModuloAdministrativoSelecionado: (modulo) => {
                 if (modulo === "alunos") {
                     void carregarAlunosAdministrativos();
+                    return;
+                }
+
+                if (modulo === "professores") {
+                    void carregarProfessoresAdministrativos();
                 }
             }
         });
