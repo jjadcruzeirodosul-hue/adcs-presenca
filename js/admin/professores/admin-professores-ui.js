@@ -311,6 +311,57 @@ export function mostrarEstadoProfessores(
     elementos.estado.hidden = false;
 }
 
+/**
+ * Alterna o estado ocupado do editor administrativo.
+ *
+ * Durante uma persistência:
+ * - bloqueia campos editáveis;
+ * - bloqueia ações do formulário;
+ * - restaura o estado anterior dos controles ao finalizar.
+ *
+ * @param {boolean} ocupado
+ */
+export function definirEditorProfessoresOcupado(
+    ocupado
+) {
+    const elementos =
+        obterElementos();
+
+    const controles =
+        elementos.editor.querySelectorAll(
+            "input, select, textarea, button"
+        );
+
+    controles.forEach((controle) => {
+        if (ocupado === true) {
+            controle.dataset.disabledAntesPersistencia =
+                controle.disabled
+                    ? "true"
+                    : "false";
+
+            controle.disabled = true;
+            return;
+        }
+
+        const estavaDesabilitado =
+            controle.dataset.disabledAntesPersistencia ===
+            "true";
+
+        controle.disabled =
+            estavaDesabilitado;
+
+        delete controle.dataset
+            .disabledAntesPersistencia;
+    });
+
+    elementos.editor.setAttribute(
+        "aria-busy",
+        ocupado === true
+            ? "true"
+            : "false"
+    );
+}
+
 function criarAcoesLista() {
     const acoes =
         document.createElement("div");
@@ -382,7 +433,7 @@ function criarFormularioNovoProfessor() {
 
     const acoes =
         criarAcoesFormulario(
-            "Preparar cadastro"
+			"Cadastrar professor"
         );
 
     formulario.append(

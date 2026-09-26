@@ -21,11 +21,17 @@
 "use strict";
 
 import {
+    obterUsuarioAutenticado
+} from "../../auth/session.js";
+
+import {
+    criarProfessorAdministrativo,
     listarProfessoresAdministrativos,
     obterProfessorAdministrativo
 } from "./admin-professores-service.js";
 
 import {
+	definirEditorProfessoresOcupado,
     initAdminProfessoresUI,
     mostrarCarregamentoProfessores,
     mostrarErroProfessores,
@@ -39,6 +45,7 @@ import {
 
 let moduloInicializado = false;
 let carregamentoEmAndamento = false;
+let persistenciaEmAndamento = false;
 let professorSelecionado = null;
 
 /**
@@ -199,16 +206,117 @@ function iniciarEdicaoProfessor() {
     );
 }
 
-function prepararNovoProfessor(dados) {
-    console.info(
-        "[Admin][Professores] Cadastro preparado localmente.",
-        dados
+async function prepararNovoProfessor(dados) {
+    if (persistenciaEmAndamento) {
+        return;
+    }
+
+    const nome =
+        typeof dados?.nome === "string"
+            ? dados.nome.trim()
+            : "";
+
+    if (nome === "") {
+        mostrarEstadoProfessores(
+            "Informe o nome do professor.",
+            "warning"
+        );
+
+        return;
+    }
+
+    const usuarioAutenticado =
+        obterUsuarioAutenticado();
+
+    if (!usuarioAutenticado?.uid) {
+        mostrarEstadoProfessores(
+            "A sessão autenticada não está disponível.",
+            "error"
+        );
+
+        return;
+    }
+
+    persistenciaEmAndamento = true;
+
+    definirEditorProfessoresOcupado(
+        true
     );
 
-	mostrarEstadoProfessores(
-		"Cadastro preparado localmente. A persistência será habilitada no próximo incremento.",
-		"info"
-	);
+    mostrarEstadoProfessores(
+        "Criando professor...",
+        "info"
+    );
+
+    console.info(
+        "[Admin][Professores] Criação administrativa iniciada.",
+        {
+            nome
+        }
+    );
+
+    try {
+        const resultadoCriacao =
+            await criarProfessorAdministrativo(
+                {
+                    nome
+                },
+                usuarioAutenticado.uid
+            );
+
+        console.info(
+            "[Admin][Professores] Professor criado com sucesso.",
+            {
+                professorId:
+                    resultadoCriacao.id,
+
+                operacaoId:
+                    resultadoCriacao.operacaoId,
+
+                eventoId:
+                    resultadoCriacao.eventoId
+            }
+        );
+
+        const professorCriado =
+            await obterProfessorAdministrativo(
+                resultadoCriacao.id
+            );
+
+        if (!professorCriado) {
+            throw new Error(
+                "Professor criado não foi localizado após a persistência."
+            );
+        }
+
+        professorSelecionado =
+            professorCriado;
+
+        mostrarProfessorSelecionado(
+            professorCriado
+        );
+
+        mostrarEstadoProfessores(
+            "Professor criado com sucesso.",
+            "success"
+        );
+    } catch (erro) {
+        console.error(
+            "[Admin][Professores] Não foi possível criar o professor.",
+            erro
+        );
+
+        mostrarEstadoProfessores(
+            obterMensagemErroPersistencia(erro),
+            "error"
+        );
+    } finally {
+        persistenciaEmAndamento = false;
+
+        definirEditorProfessoresOcupado(
+            false
+        );
+    }
 }
 
 function prepararEdicaoProfessor(dados) {
@@ -245,6 +353,39 @@ function cancelarEdicaoProfessor() {
     }
 
     void carregarProfessoresAdministrativos();
+}
+
+/**
+ * Traduz falhas de persistência para mensagem de interface.
+ *
+ * @param {unknown} erro
+ * @returns {string}
+ */
+function obterMensagemErroPersistencia(
+    erro
+) {
+    if (
+        erro &&
+        typeof erro === "object" &&
+        erro.code === "permission-denied"
+    ) {
+        return (
+            "Você não possui permissão para realizar " +
+            "esta operação administrativa."
+        );
+    }
+
+    if (
+        erro instanceof Error &&
+        erro.message
+    ) {
+        return erro.message;
+    }
+
+    return (
+        "Não foi possível criar o professor. " +
+        "Tente novamente."
+    );
 }
 
 /**

@@ -18,10 +18,17 @@ import {
     collection,
     doc,
     getDoc,
-    getDocs
+    getDocs,
+    serverTimestamp,
+    writeBatch
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 import { db } from "../../firebase.js";
+
+import {
+    montarEventoAuditoriaCriacaoProfessor,
+    montarOperacaoCriacaoProfessor
+} from "./admin-professores-operation.js";
 
 /**
  * Lista os professores disponíveis para administração.
@@ -82,6 +89,168 @@ export async function obterProfessorAdministrativo(
         id: documento.id,
         ...documento.data()
     };
+}
+
+/**
+ * Cria um professor e seu respectivo evento de auditoria
+ * na mesma unidade atômica.
+ *
+ * @param {{
+ *     nome: string
+ * }} dados
+ *
+ * @param {string} autorUid
+ *
+ * @returns {Promise<{
+ *     id: string,
+ *     nome: string,
+ *     ativo: boolean,
+ *     operacaoId: string,
+ *     eventoId: string
+ * }>}
+ */
+export async function criarProfessorAdministrativo(
+    dados,
+    autorUid
+) {
+    const nome =
+        normalizarTextoObrigatorio(
+            dados?.nome,
+            "Nome do professor"
+        );
+
+    const autorUidNormalizado =
+        normalizarTextoObrigatorio(
+            autorUid,
+            "UID do autor"
+        );
+
+    /*
+     * O ID físico é definido antes do batch para que
+     * professor e auditoria compartilhem deterministicamente
+     * o mesmo professorId.
+     */
+    const referenciaProfessor =
+        doc(
+            collection(
+                db,
+                "professores"
+            )
+        );
+
+    const operacao =
+        montarOperacaoCriacaoProfessor(
+            referenciaProfessor.id,
+            {
+                nome
+            }
+        );
+
+    /*
+     * A mesma sentinela é reutilizada no professor
+     * e no evento de auditoria.
+     */
+    const timestampServidor =
+        serverTimestamp();
+
+    const evento =
+        montarEventoAuditoriaCriacaoProfessor(
+            operacao,
+            {
+                autorUid:
+                    autorUidNormalizado,
+
+                ocorridoEm:
+                    timestampServidor,
+
+                contexto:
+                    null
+            }
+        );
+
+    const referenciaAuditoria =
+        doc(
+            db,
+            "auditoriaAdministrativa",
+            operacao.eventoId
+        );
+
+    const batch =
+        writeBatch(db);
+
+    /*
+     * CREATE professores/{professorId}
+     */
+    batch.set(
+        referenciaProfessor,
+        {
+            nome:
+                operacao.after.nome,
+
+            ativo:
+                true,
+
+            atualizadoEm:
+                timestampServidor,
+
+            atualizadoPor:
+                autorUidNormalizado,
+
+            ultimaOperacaoId:
+                operacao.operacaoId
+        }
+    );
+
+    /*
+     * CREATE auditoriaAdministrativa/{eventoId}
+     */
+    batch.set(
+        referenciaAuditoria,
+        evento
+    );
+
+    await batch.commit();
+
+    return {
+        id:
+            referenciaProfessor.id,
+
+        nome:
+            operacao.after.nome,
+
+        ativo:
+            true,
+
+        operacaoId:
+            operacao.operacaoId,
+
+        eventoId:
+            operacao.eventoId
+    };
+}
+
+/**
+ * Normaliza e valida texto obrigatório recebido
+ * pelo serviço administrativo.
+ *
+ * @param {unknown} valor
+ * @param {string} rotulo
+ * @returns {string}
+ */
+function normalizarTextoObrigatorio(
+    valor,
+    rotulo
+) {
+    if (
+        typeof valor !== "string" ||
+        valor.trim() === ""
+    ) {
+        throw new TypeError(
+            `${rotulo} é obrigatório.`
+        );
+    }
+
+    return valor.trim();
 }
 
 /**
