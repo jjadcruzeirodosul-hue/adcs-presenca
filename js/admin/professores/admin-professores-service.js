@@ -26,7 +26,9 @@ import {
 import { db } from "../../firebase.js";
 
 import {
+    montarEventoAuditoriaAtualizacaoProfessor,
     montarEventoAuditoriaCriacaoProfessor,
+    montarOperacaoAtualizacaoProfessor,
     montarOperacaoCriacaoProfessor
 } from "./admin-professores-operation.js";
 
@@ -220,6 +222,193 @@ export async function criarProfessorAdministrativo(
 
         ativo:
             true,
+
+        operacaoId:
+            operacao.operacaoId,
+
+        eventoId:
+            operacao.eventoId
+    };
+}
+
+/**
+ * Atualiza o nome de um professor e cria seu respectivo
+ * evento de auditoria na mesma unidade atômica.
+ *
+ * Retorna noOp = true quando não existe alteração funcional.
+ *
+ * @param {string} professorId
+ * @param {{
+ *     nome: string
+ * }} dados
+ * @param {string} autorUid
+ *
+ * @returns {Promise<{
+ *     id: string,
+ *     nome: string,
+ *     ativo: boolean,
+ *     noOp: boolean,
+ *     operacaoId: string|null,
+ *     eventoId: string|null
+ * }>}
+ */
+export async function atualizarProfessorAdministrativo(
+    professorId,
+    dados,
+    autorUid
+) {
+    const professorIdNormalizado =
+        normalizarTextoObrigatorio(
+            professorId,
+            "ID do professor"
+        );
+
+    const nome =
+        normalizarTextoObrigatorio(
+            dados?.nome,
+            "Nome do professor"
+        );
+
+    const autorUidNormalizado =
+        normalizarTextoObrigatorio(
+            autorUid,
+            "UID do autor"
+        );
+
+    const referenciaProfessor =
+        doc(
+            db,
+            "professores",
+            professorIdNormalizado
+        );
+
+    const documentoAtual =
+        await getDoc(
+            referenciaProfessor
+        );
+
+    if (!documentoAtual.exists()) {
+        throw new Error(
+            "Professor não localizado para atualização."
+        );
+    }
+
+    const professorAtual =
+        documentoAtual.data();
+
+    const operacao =
+        montarOperacaoAtualizacaoProfessor(
+            professorIdNormalizado,
+            {
+                nome:
+                    professorAtual.nome,
+
+                ativo:
+                    professorAtual.ativo
+            },
+            {
+                nome
+            }
+        );
+
+    /*
+     * No-op funcional:
+     * nenhuma escrita e nenhuma auditoria são produzidas.
+     */
+    if (operacao === null) {
+        return {
+            id:
+                professorIdNormalizado,
+
+            nome:
+                professorAtual.nome,
+
+            ativo:
+                professorAtual.ativo,
+
+            noOp:
+                true,
+
+            operacaoId:
+                null,
+
+            eventoId:
+                null
+        };
+    }
+
+    const timestampServidor =
+        serverTimestamp();
+
+    const evento =
+        montarEventoAuditoriaAtualizacaoProfessor(
+            operacao,
+            {
+                autorUid:
+                    autorUidNormalizado,
+
+                ocorridoEm:
+                    timestampServidor,
+
+                contexto:
+                    null
+            }
+        );
+
+    const referenciaAuditoria =
+        doc(
+            db,
+            "auditoriaAdministrativa",
+            operacao.eventoId
+        );
+
+    const batch =
+        writeBatch(db);
+
+    /*
+     * UPDATE professores/{professorId}
+     *
+     * O campo ativo não é administrado pelo FE-05.
+     */
+    batch.update(
+        referenciaProfessor,
+        {
+            nome:
+                operacao.after.nome,
+
+            atualizadoEm:
+                timestampServidor,
+
+            atualizadoPor:
+                autorUidNormalizado,
+
+            ultimaOperacaoId:
+                operacao.operacaoId
+        }
+    );
+
+    /*
+     * CREATE auditoriaAdministrativa/{eventoId}
+     */
+    batch.set(
+        referenciaAuditoria,
+        evento
+    );
+
+    await batch.commit();
+
+    return {
+        id:
+            professorIdNormalizado,
+
+        nome:
+            operacao.after.nome,
+
+        ativo:
+            operacao.after.ativo,
+
+        noOp:
+            false,
 
         operacaoId:
             operacao.operacaoId,

@@ -479,7 +479,7 @@ function criarFormularioEdicaoProfessor(
 
     const acoes =
         criarAcoesFormulario(
-            "Preparar alteraÃ§Ãµes"
+			"Salvar alterações"
         );
 
     formulario.append(

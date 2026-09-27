@@ -25,6 +25,7 @@ import {
 } from "../../auth/session.js";
 
 import {
+    atualizarProfessorAdministrativo,
     criarProfessorAdministrativo,
     listarProfessoresAdministrativos,
     obterProfessorAdministrativo
@@ -319,28 +320,137 @@ async function prepararNovoProfessor(dados) {
     }
 }
 
-function prepararEdicaoProfessor(dados) {
-    if (!professorSelecionado) {
-        mostrarErroProfessores(
-            "Nenhum professor selecionado para edição."
+async function prepararEdicaoProfessor(dados) {
+    if (
+        persistenciaEmAndamento ||
+        !professorSelecionado
+    ) {
+        if (!professorSelecionado) {
+            mostrarErroProfessores(
+                "Nenhum professor selecionado para edição."
+            );
+        }
+
+        return;
+    }
+
+    const nome =
+        typeof dados?.nome === "string"
+            ? dados.nome.trim()
+            : "";
+
+    if (nome === "") {
+        mostrarEstadoProfessores(
+            "Informe o nome do professor.",
+            "warning"
         );
 
         return;
     }
 
-    console.info(
-        "[Admin][Professores] Alteração preparada localmente.",
-        {
-            professorId:
-                professorSelecionado.id,
-            ...dados
-        }
+    const usuarioAutenticado =
+        obterUsuarioAutenticado();
+
+    if (!usuarioAutenticado?.uid) {
+        mostrarEstadoProfessores(
+            "A sessão autenticada não está disponível.",
+            "error"
+        );
+
+        return;
+    }
+
+    persistenciaEmAndamento = true;
+
+    definirEditorProfessoresOcupado(
+        true
     );
 
-	mostrarEstadoProfessores(
-		"Alteração preparada localmente. A persistência será habilitada no próximo incremento.",
-		"info"
-	);
+    mostrarEstadoProfessores(
+        "Salvando alterações...",
+        "info"
+    );
+
+    try {
+        const resultadoAtualizacao =
+            await atualizarProfessorAdministrativo(
+                professorSelecionado.id,
+                {
+                    nome
+                },
+                usuarioAutenticado.uid
+            );
+
+        /*
+         * No-op funcional:
+         * nenhuma escrita e nenhuma auditoria ocorreram.
+         */
+        if (resultadoAtualizacao.noOp) {
+            mostrarProfessorSelecionado(
+                professorSelecionado
+            );
+
+            mostrarEstadoProfessores(
+                "Nenhuma alteração para salvar.",
+                "info"
+            );
+
+            return;
+        }
+
+        console.info(
+            "[Admin][Professores] Professor atualizado com sucesso.",
+            {
+                professorId:
+                    resultadoAtualizacao.id,
+
+                operacaoId:
+                    resultadoAtualizacao.operacaoId,
+
+                eventoId:
+                    resultadoAtualizacao.eventoId
+            }
+        );
+
+        const professorAtualizado =
+            await obterProfessorAdministrativo(
+                resultadoAtualizacao.id
+            );
+
+        if (!professorAtualizado) {
+            throw new Error(
+                "Professor atualizado não foi localizado após a persistência."
+            );
+        }
+
+        professorSelecionado =
+            professorAtualizado;
+
+        mostrarProfessorSelecionado(
+            professorAtualizado
+        );
+
+        mostrarEstadoProfessores(
+            "Professor atualizado com sucesso.",
+            "success"
+        );
+    } catch (erro) {
+        console.error(
+            "[Admin][Professores] Não foi possível atualizar o professor.",
+            erro
+        );
+
+        mostrarEstadoProfessores(
+            obterMensagemErroPersistencia(erro),
+            "error"
+        );
+    } finally {
+        persistenciaEmAndamento = false;
+
+        definirEditorProfessoresOcupado(
+            false
+        );
+    }
 }
 
 function cancelarEdicaoProfessor() {

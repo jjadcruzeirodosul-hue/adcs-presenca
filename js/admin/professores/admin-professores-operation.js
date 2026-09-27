@@ -17,7 +17,8 @@ const ENTIDADE_PROFESSOR =
     "PROFESSOR";
 
 const ACOES_PROFESSOR = {
-    CRIADO: "PROFESSOR_CRIADO"
+    CRIADO: "PROFESSOR_CRIADO",
+    ATUALIZADO: "PROFESSOR_ATUALIZADO"
 };
 
 /**
@@ -104,6 +105,117 @@ export function montarOperacaoCriacaoProfessor(
 }
 
 /**
+ * Monta a operação administrativa de atualização
+ * do nome de um professor.
+ *
+ * Retorna null quando não existe alteração funcional.
+ *
+ * @param {string} professorId
+ * @param {{
+ *     nome: string,
+ *     ativo: boolean
+ * }} before
+ * @param {{
+ *     nome: string
+ * }} dados
+ *
+ * @returns {Object|null}
+ */
+export function montarOperacaoAtualizacaoProfessor(
+    professorId,
+    before,
+    dados
+) {
+    const professorIdNormalizado =
+        normalizarProfessorId(
+            professorId
+        );
+
+    const nomeAnterior =
+        normalizarTexto(
+            before?.nome
+        );
+
+    const nomeNovo =
+        normalizarTexto(
+            dados?.nome
+        );
+
+    if (nomeAnterior === "") {
+        throw new TypeError(
+            "Nome atual do professor é obrigatório."
+        );
+    }
+
+    if (nomeNovo === "") {
+        throw new TypeError(
+            "Nome do professor é obrigatório."
+        );
+    }
+
+    if (typeof before?.ativo !== "boolean") {
+        throw new TypeError(
+            "Status atual do professor é inválido."
+        );
+    }
+
+    /*
+     * No-op funcional:
+     * nenhuma operação, escrita ou auditoria deve
+     * ser produzida quando o nome não mudou.
+     */
+    if (nomeNovo === nomeAnterior) {
+        return null;
+    }
+
+    const operacaoId =
+        gerarOperacaoId();
+
+    const eventoId =
+        montarEventoIdProfessor(
+            operacaoId,
+            professorIdNormalizado
+        );
+
+    return {
+        operacaoId,
+        eventoId,
+
+        entidade:
+            ENTIDADE_PROFESSOR,
+
+        entidadeId:
+            professorIdNormalizado,
+
+        professorId:
+            professorIdNormalizado,
+
+        before: {
+            nome:
+                nomeAnterior,
+
+            ativo:
+                before.ativo
+        },
+
+        after: {
+            nome:
+                nomeNovo,
+
+            ativo:
+                before.ativo
+        },
+
+        camposAlterados: [
+            "nome"
+        ],
+
+        acao:
+            ACOES_PROFESSOR.ATUALIZADO
+    };
+}
+
+/**
  * Monta o evento de auditoria correspondente
  * à criação de professor.
  *
@@ -182,6 +294,88 @@ export function montarEventoAuditoriaCriacaoProfessor(
 
         versaoSchema:
             1
+    };
+}
+
+/**
+ * Monta o evento de auditoria correspondente
+ * à atualização de professor.
+ *
+ * @param {Object} operacao
+ * @param {{
+ *     autorUid: string,
+ *     ocorridoEm: Object,
+ *     contexto?: Object|null
+ * }} metadados
+ *
+ * @returns {Object}
+ */
+export function montarEventoAuditoriaAtualizacaoProfessor(
+    operacao,
+    {
+        autorUid,
+        ocorridoEm,
+        contexto = null
+    }
+) {
+    if (
+        !operacao ||
+        operacao.acao !==
+            ACOES_PROFESSOR.ATUALIZADO ||
+        !operacao.before ||
+        !operacao.after ||
+        typeof operacao.professorId !== "string" ||
+        operacao.professorId.trim() === ""
+    ) {
+        throw new Error(
+            "Operação administrativa de atualização de professor inválida."
+        );
+    }
+
+    if (
+        typeof autorUid !== "string" ||
+        autorUid.trim() === ""
+    ) {
+        throw new TypeError(
+            "UID do autor da operação é obrigatório."
+        );
+    }
+
+    return {
+        operacaoId:
+            operacao.operacaoId,
+
+        entidade:
+            ENTIDADE_PROFESSOR,
+
+        entidadeId:
+            operacao.professorId,
+
+        acao:
+            ACOES_PROFESSOR.ATUALIZADO,
+
+        autorUid:
+            autorUid.trim(),
+
+        ocorridoEm,
+
+		before: {
+			nome:
+				operacao.before.nome
+		},
+
+		after: {
+			nome:
+				operacao.after.nome
+		},
+
+        camposAlterados: [
+            ...operacao.camposAlterados
+        ],
+
+        contexto,
+
+        versaoSchema: 1
     };
 }
 
