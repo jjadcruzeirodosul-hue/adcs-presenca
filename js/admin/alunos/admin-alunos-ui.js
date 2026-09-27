@@ -638,7 +638,7 @@ function criarFormularioEdicaoAluno(
 
     const acoes =
         criarAcoesFormulario(
-            "Preparar alterações"
+            "Salvar alterações"
         );
 
     formulario.append(
