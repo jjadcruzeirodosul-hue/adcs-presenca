@@ -477,14 +477,20 @@ function criarFormularioEdicaoProfessor(
             autocomplete: "name"
         });
 
+    const campoAtivo =
+        criarCampoAtivo(
+            professor.ativo === true
+        );
+
     const acoes =
         criarAcoesFormulario(
-			"Salvar alterações"
+            "Salvar alterações"
         );
 
     formulario.append(
         titulo,
         campoNome,
+        campoAtivo,
         acoes
     );
 
@@ -548,6 +554,77 @@ function criarCampoTexto(
     );
 
     return campo;
+}
+
+/**
+ * Cria o controle do estado operacional do professor.
+ *
+ * @param {boolean} ativo
+ * @returns {HTMLElement}
+ */
+function criarCampoAtivo(ativo) {
+    const grupo =
+        document.createElement("fieldset");
+
+    grupo.className =
+        "admin-user-editor__group";
+
+    const legenda =
+        document.createElement("legend");
+
+    legenda.className =
+        "admin-user-editor__legend";
+
+    legenda.textContent =
+        "Estado operacional";
+
+    const label =
+        document.createElement("label");
+
+    label.className =
+        "admin-user-editor__option";
+
+    const input =
+        document.createElement("input");
+
+    input.type =
+        "checkbox";
+
+    input.name =
+        "ativo";
+
+    input.checked =
+        ativo;
+
+    const texto =
+        document.createElement("span");
+
+    texto.textContent =
+        input.checked
+            ? "Professor ativo"
+            : "Professor inativo";
+
+    input.addEventListener(
+        "change",
+        () => {
+            texto.textContent =
+                input.checked
+                    ? "Professor ativo"
+                    : "Professor inativo";
+        }
+    );
+
+    label.append(
+        input,
+        texto
+    );
+
+    grupo.append(
+        legenda,
+        label
+    );
+
+    return grupo;
 }
 
 function criarAcoesFormulario(
@@ -816,14 +893,24 @@ function tratarSubmitEditor(evento) {
         return;
     }
 
-	if (
-		tipo === "edicao" &&
-		callbackPrepararEdicaoProfessor
-	) {
-		callbackPrepararEdicaoProfessor({
-			nome: nomeNormalizado
-		});
-	}
+    if (
+        tipo === "edicao" &&
+        callbackPrepararEdicaoProfessor
+    ) {
+        const ativo =
+            formulario.querySelector(
+                'input[name="ativo"]'
+            );
+
+        if (!(ativo instanceof HTMLInputElement)) {
+            return;
+        }
+
+        callbackPrepararEdicaoProfessor({
+            nome: nomeNormalizado,
+            ativo: ativo.checked
+        });
+    }
 }
 
 function tratarCliqueEditor(evento) {

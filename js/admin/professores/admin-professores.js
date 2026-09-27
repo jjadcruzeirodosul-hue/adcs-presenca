@@ -339,9 +339,23 @@ async function prepararEdicaoProfessor(dados) {
             ? dados.nome.trim()
             : "";
 
+    const ativo =
+        typeof dados?.ativo === "boolean"
+            ? dados.ativo
+            : null;
+
     if (nome === "") {
         mostrarEstadoProfessores(
             "Informe o nome do professor.",
+            "warning"
+        );
+
+        return;
+    }
+
+    if (ativo === null) {
+        mostrarEstadoProfessores(
+            "Informe o estado operacional do professor.",
             "warning"
         );
 
@@ -376,7 +390,8 @@ async function prepararEdicaoProfessor(dados) {
             await atualizarProfessorAdministrativo(
                 professorSelecionado.id,
                 {
-                    nome
+                    nome,
+                    ativo
                 },
                 usuarioAutenticado.uid
             );

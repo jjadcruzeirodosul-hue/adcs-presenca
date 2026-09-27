@@ -269,6 +269,15 @@ export async function atualizarProfessorAdministrativo(
             "Nome do professor"
         );
 
+    const ativo =
+        dados?.ativo;
+
+    if (typeof ativo !== "boolean") {
+        throw new TypeError(
+            "Status do professor é inválido."
+        );
+    }
+
     const autorUidNormalizado =
         normalizarTextoObrigatorio(
             autorUid,
@@ -307,7 +316,8 @@ export async function atualizarProfessorAdministrativo(
                     professorAtual.ativo
             },
             {
-                nome
+                nome,
+                ativo
             }
         );
 
@@ -367,14 +377,15 @@ export async function atualizarProfessorAdministrativo(
 
     /*
      * UPDATE professores/{professorId}
-     *
-     * O campo ativo não é administrado pelo FE-05.
      */
     batch.update(
         referenciaProfessor,
         {
             nome:
                 operacao.after.nome,
+
+            ativo:
+                operacao.after.ativo,
 
             atualizadoEm:
                 timestampServidor,

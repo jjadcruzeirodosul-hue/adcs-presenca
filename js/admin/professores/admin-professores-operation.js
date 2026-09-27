@@ -18,7 +18,9 @@ const ENTIDADE_PROFESSOR =
 
 const ACOES_PROFESSOR = {
     CRIADO: "PROFESSOR_CRIADO",
-    ATUALIZADO: "PROFESSOR_ATUALIZADO"
+    ATUALIZADO: "PROFESSOR_ATUALIZADO",
+    ATIVADO: "PROFESSOR_ATIVADO",
+    DESATIVADO: "PROFESSOR_DESATIVADO"
 };
 
 /**
@@ -159,13 +161,69 @@ export function montarOperacaoAtualizacaoProfessor(
         );
     }
 
+    if (typeof dados?.ativo !== "boolean") {
+        throw new TypeError(
+            "Status do professor é inválido."
+        );
+    }
+
+    const ativoAnterior =
+        before.ativo;
+
+    const ativoNovo =
+        dados.ativo;
+
+    const nomeAlterado =
+        nomeNovo !== nomeAnterior;
+
+    const ativoAlterado =
+        ativoNovo !== ativoAnterior;
+
     /*
      * No-op funcional:
      * nenhuma operação, escrita ou auditoria deve
-     * ser produzida quando o nome não mudou.
+     * ser produzida quando nenhum campo funcional mudou.
      */
-    if (nomeNovo === nomeAnterior) {
+    if (
+        !nomeAlterado &&
+        !ativoAlterado
+    ) {
         return null;
+    }
+
+    const camposAlterados = [];
+
+    if (nomeAlterado) {
+        camposAlterados.push(
+            "nome"
+        );
+    }
+
+    if (ativoAlterado) {
+        camposAlterados.push(
+            "ativo"
+        );
+    }
+
+    let acao =
+        ACOES_PROFESSOR.ATUALIZADO;
+
+    /*
+     * S4-DEC-006:
+     * ATIVADO/DESATIVADO são reservados para
+     * alterações exclusivamente do campo ativo.
+     *
+     * Nome + ativo na mesma operação permanece
+     * PROFESSOR_ATUALIZADO.
+     */
+    if (
+        !nomeAlterado &&
+        ativoAlterado
+    ) {
+        acao =
+            ativoNovo
+                ? ACOES_PROFESSOR.ATIVADO
+                : ACOES_PROFESSOR.DESATIVADO;
     }
 
     const operacaoId =
@@ -195,7 +253,7 @@ export function montarOperacaoAtualizacaoProfessor(
                 nomeAnterior,
 
             ativo:
-                before.ativo
+                ativoAnterior
         },
 
         after: {
@@ -203,15 +261,12 @@ export function montarOperacaoAtualizacaoProfessor(
                 nomeNovo,
 
             ativo:
-                before.ativo
+                ativoNovo
         },
 
-        camposAlterados: [
-            "nome"
-        ],
+        camposAlterados,
 
-        acao:
-            ACOES_PROFESSOR.ATUALIZADO
+        acao
     };
 }
 
@@ -318,14 +373,25 @@ export function montarEventoAuditoriaAtualizacaoProfessor(
         contexto = null
     }
 ) {
+    const acoesAtualizacaoValidas = [
+        ACOES_PROFESSOR.ATUALIZADO,
+        ACOES_PROFESSOR.ATIVADO,
+        ACOES_PROFESSOR.DESATIVADO
+    ];
+
     if (
         !operacao ||
-        operacao.acao !==
-            ACOES_PROFESSOR.ATUALIZADO ||
+        !acoesAtualizacaoValidas.includes(
+            operacao.acao
+        ) ||
         !operacao.before ||
         !operacao.after ||
         typeof operacao.professorId !== "string" ||
-        operacao.professorId.trim() === ""
+        operacao.professorId.trim() === "" ||
+        !Array.isArray(
+            operacao.camposAlterados
+        ) ||
+        operacao.camposAlterados.length === 0
     ) {
         throw new Error(
             "Operação administrativa de atualização de professor inválida."
@@ -341,6 +407,28 @@ export function montarEventoAuditoriaAtualizacaoProfessor(
         );
     }
 
+    const before = {};
+    const after = {};
+
+    for (
+        const campo of operacao.camposAlterados
+    ) {
+        if (
+            campo !== "nome" &&
+            campo !== "ativo"
+        ) {
+            throw new Error(
+                "Campo alterado de professor inválido."
+            );
+        }
+
+        before[campo] =
+            operacao.before[campo];
+
+        after[campo] =
+            operacao.after[campo];
+    }
+
     return {
         operacaoId:
             operacao.operacaoId,
@@ -352,22 +440,16 @@ export function montarEventoAuditoriaAtualizacaoProfessor(
             operacao.professorId,
 
         acao:
-            ACOES_PROFESSOR.ATUALIZADO,
+            operacao.acao,
 
         autorUid:
             autorUid.trim(),
 
         ocorridoEm,
 
-		before: {
-			nome:
-				operacao.before.nome
-		},
+        before,
 
-		after: {
-			nome:
-				operacao.after.nome
-		},
+        after,
 
         camposAlterados: [
             ...operacao.camposAlterados
