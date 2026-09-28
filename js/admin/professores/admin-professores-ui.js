@@ -312,6 +312,28 @@ export function mostrarEstadoProfessores(
 }
 
 /**
+ * Exibe feedback sem ocultar o conteúdo atual do módulo.
+ *
+ * @param {string} texto
+ * @param {"info" | "success" | "warning" | "error"} tipo
+ */
+export function mostrarFeedbackProfessores(
+    texto,
+    tipo = "info"
+) {
+    const elementos =
+        obterElementos();
+
+    elementos.estado.textContent =
+        texto;
+
+    elementos.estado.className =
+        `feedback feedback--${tipo}`;
+
+    elementos.estado.hidden = false;
+}
+
+/**
  * Alterna o estado ocupado do editor administrativo.
  *
  * Durante uma persistência:

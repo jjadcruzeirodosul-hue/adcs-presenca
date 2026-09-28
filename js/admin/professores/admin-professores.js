@@ -37,6 +37,7 @@ import {
     mostrarCarregamentoProfessores,
     mostrarErroProfessores,
     mostrarEstadoProfessores,
+    mostrarFeedbackProfessores,
     mostrarListaProfessores,
     mostrarListaVaziaProfessores,
     mostrarProfessorSelecionado,
@@ -438,14 +439,20 @@ async function prepararEdicaoProfessor(dados) {
             );
         }
 
-        professorSelecionado =
-            professorAtualizado;
+        const professores =
+            await listarProfessoresAdministrativos();
 
-        mostrarProfessorSelecionado(
-            professorAtualizado
-        );
+        professorSelecionado = null;
 
-        mostrarEstadoProfessores(
+        if (professores.length === 0) {
+            mostrarListaVaziaProfessores();
+        } else {
+            mostrarListaProfessores(
+                professores
+            );
+        }
+
+        mostrarFeedbackProfessores(
             "Professor atualizado com sucesso.",
             "success"
         );

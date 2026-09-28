@@ -120,6 +120,10 @@ function iniciarAplicacao() {
                 await carregarUsuariosAdministrativos();
             },
 
+            onDepoisEntrarOperacao: async () => {
+                await carregarProfessores();
+            },
+
             onModuloAdministrativoSelecionado: (modulo) => {
                 if (modulo === "alunos") {
                     void carregarAlunosAdministrativos();
