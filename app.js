@@ -239,6 +239,7 @@ async function processarEstadoSessao(sessao) {
  */
 async function inicializarModulosOperacionais() {
     if (modulosOperacionaisInicializados) {
+        await carregarProfessores();
         return;
     }
 
