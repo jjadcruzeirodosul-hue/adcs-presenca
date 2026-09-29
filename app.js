@@ -65,6 +65,11 @@ import {
 } from "./js/admin/alunos/admin-alunos.js";
 
 import {
+    carregarProfessoresAdministrativos,
+    initAdminProfessores
+} from "./js/admin/professores/admin-professores.js";
+
+import {
     initUI,
     limparFeedback,
     mostrarMensagem
@@ -115,15 +120,25 @@ function iniciarAplicacao() {
                 await carregarUsuariosAdministrativos();
             },
 
+            onDepoisEntrarOperacao: async () => {
+                await carregarProfessores();
+            },
+
             onModuloAdministrativoSelecionado: (modulo) => {
                 if (modulo === "alunos") {
                     void carregarAlunosAdministrativos();
+                    return;
+                }
+
+                if (modulo === "professores") {
+                    void carregarProfessoresAdministrativos();
                 }
             }
         });
 
-        initAdminUsuarios();
+		initAdminUsuarios();
         initAdminAlunos();
+        initAdminProfessores();
 
         mostrarPainelLogin();
 
@@ -224,6 +239,7 @@ async function processarEstadoSessao(sessao) {
  */
 async function inicializarModulosOperacionais() {
     if (modulosOperacionaisInicializados) {
+        await carregarProfessores();
         return;
     }
 

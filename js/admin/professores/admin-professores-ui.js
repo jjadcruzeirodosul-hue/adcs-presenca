@@ -1,19 +1,18 @@
-/**
+﻿/**
  * ============================================================
- * ADCS Presença
- * admin-alunos-ui.js
+ * ADCS PresenÃ§a
+ * admin-professores-ui.js
  * ------------------------------------------------------------
- * Responsável exclusivamente pela interface da Gestão
- * Administrativa de Alunos.
+ * ResponsÃ¡vel exclusivamente pela interface da GestÃ£o
+ * Administrativa de Professores.
  *
  * Responsabilidades neste incremento:
- * - estados visuais do módulo;
- * - listagem e consulta de alunos;
- * - formulário local de criação;
- * - formulário local de edição;
- * - coleta e validação estrutural de dados locais.
+ * - inicializaÃ§Ã£o estrutural da interface;
+ * - estados de carregamento, lista vazia e erro;
+ * - renderizaÃ§Ã£o da listagem administrativa;
+ * - apresentaÃ§Ã£o do professor selecionado.
  *
- * Não conhece Firebase, Firestore, sessão ou Security Rules.
+ * NÃ£o conhece Firebase, Firestore, sessÃ£o ou Security Rules.
  *
  * Conforme DEVSTD-001.
  * ============================================================
@@ -22,46 +21,28 @@
 "use strict";
 
 let moduloInicializado = false;
-
-let callbackSelecionarAluno = null;
-let callbackNovoAluno = null;
-let callbackEditarAluno = null;
-let callbackPrepararNovoAluno = null;
-let callbackPrepararEdicaoAluno = null;
+let callbackSelecionarProfessor = null;
+let callbackNovoProfessor = null;
+let callbackEditarProfessor = null;
+let callbackPrepararNovoProfessor = null;
+let callbackPrepararEdicaoProfessor = null;
 let callbackCancelarEdicao = null;
 let callbackVoltarLista = null;
 
 /**
- * Inicializa a interface administrativa de alunos.
+ * Inicializa a interface administrativa de professores.
  *
  * @param {{
- *     onSelecionarAluno?: (alunoId: string) => void,
- *     onNovoAluno?: () => void,
- *     onEditarAluno?: () => void,
- *     onPrepararNovoAluno?: (
- *         dados: {
- *             nome: string,
- *             faixa: string
- *         }
- *     ) => void,
- *     onPrepararEdicaoAluno?: (
- *         dados: {
- *             nome: string,
- *             faixa: string,
- *             ativo: boolean
- *         }
- *     ) => void,
- *     onCancelarEdicao?: () => void,
- *     onVoltarLista?: () => void
- * }} opcoes
+ *     onSelecionarProfessor?: function(string): void
+ * }} callbacks
  */
-export function initAdminAlunosUI(
+export function initAdminProfessoresUI(
     {
-        onSelecionarAluno = null,
-        onNovoAluno = null,
-        onEditarAluno = null,
-        onPrepararNovoAluno = null,
-        onPrepararEdicaoAluno = null,
+        onSelecionarProfessor = null,
+        onNovoProfessor = null,
+        onEditarProfessor = null,
+        onPrepararNovoProfessor = null,
+        onPrepararEdicaoProfessor = null,
         onCancelarEdicao = null,
         onVoltarLista = null
     } = {}
@@ -70,29 +51,29 @@ export function initAdminAlunosUI(
         return;
     }
 
-    callbackSelecionarAluno =
-        typeof onSelecionarAluno === "function"
-            ? onSelecionarAluno
+    callbackSelecionarProfessor =
+        typeof onSelecionarProfessor === "function"
+            ? onSelecionarProfessor
             : null;
 
-    callbackNovoAluno =
-        typeof onNovoAluno === "function"
-            ? onNovoAluno
+    callbackNovoProfessor =
+        typeof onNovoProfessor === "function"
+            ? onNovoProfessor
             : null;
 
-    callbackEditarAluno =
-        typeof onEditarAluno === "function"
-            ? onEditarAluno
+    callbackEditarProfessor =
+        typeof onEditarProfessor === "function"
+            ? onEditarProfessor
             : null;
 
-    callbackPrepararNovoAluno =
-        typeof onPrepararNovoAluno === "function"
-            ? onPrepararNovoAluno
+    callbackPrepararNovoProfessor =
+        typeof onPrepararNovoProfessor === "function"
+            ? onPrepararNovoProfessor
             : null;
 
-    callbackPrepararEdicaoAluno =
-        typeof onPrepararEdicaoAluno === "function"
-            ? onPrepararEdicaoAluno
+    callbackPrepararEdicaoProfessor =
+        typeof onPrepararEdicaoProfessor === "function"
+            ? onPrepararEdicaoProfessor
             : null;
 
     callbackCancelarEdicao =
@@ -124,12 +105,16 @@ export function initAdminAlunosUI(
     ocultarEstado(elementos);
 
     moduloInicializado = true;
+
+    console.info(
+        "[Admin][Professores][UI] Interface inicializada."
+    );
 }
 
 /**
  * Exibe o estado de carregamento.
  */
-export function mostrarCarregamentoAlunos() {
+export function mostrarCarregamentoProfessores() {
     const elementos =
         obterElementos();
 
@@ -143,43 +128,41 @@ export function mostrarCarregamentoAlunos() {
 /**
  * Exibe o estado de lista vazia.
  */
-export function mostrarListaVaziaAlunos() {
+export function mostrarListaVaziaProfessores() {
     const elementos =
         obterElementos();
 
     ocultarLoading(elementos);
-    ocultarLista(elementos);
     ocultarEditor(elementos);
+    ocultarEstado(elementos);
 
-    const acoes =
-        criarAcoesLista();
+    elementos.lista.replaceChildren();
 
-    elementos.lista.replaceChildren(
-        acoes
+    const mensagem =
+        document.createElement("p");
+
+    mensagem.className =
+        "admin-students-list__empty";
+
+    mensagem.textContent =
+        "Nenhum professor cadastrado.";
+
+    elementos.lista.appendChild(
+        mensagem
     );
 
     elementos.lista.hidden = false;
-
-    mostrarEstadoAlunos(
-        "Nenhum aluno cadastrado foi encontrado.",
-        "info"
-    );
 }
 
 /**
- * Exibe mensagem de erro.
+ * Exibe erro geral do mÃ³dulo.
  *
  * @param {string} mensagem
  */
-export function mostrarErroAlunos(mensagem) {
-    const elementos =
-        obterElementos();
-
-    ocultarLoading(elementos);
-    ocultarLista(elementos);
-    ocultarEditor(elementos);
-
-    mostrarEstadoAlunos(
+export function mostrarErroProfessores(
+    mensagem
+) {
+    mostrarEstadoProfessores(
         mensagem,
         "error"
     );
@@ -188,9 +171,11 @@ export function mostrarErroAlunos(mensagem) {
 /**
  * Renderiza a listagem administrativa.
  *
- * @param {Object[]} alunos
+ * @param {Object[]} professores
  */
-export function mostrarListaAlunos(alunos) {
+export function mostrarListaProfessores(
+    professores
+) {
     const elementos =
         obterElementos();
 
@@ -208,71 +193,49 @@ export function mostrarListaAlunos(alunos) {
     );
 
     if (
-        !Array.isArray(alunos) ||
-        alunos.length === 0
+        !Array.isArray(professores) ||
+        professores.length === 0
     ) {
-        mostrarListaVaziaAlunos();
+        const mensagem =
+            document.createElement("p");
+
+        mensagem.className =
+            "admin-students-list__empty";
+
+        mensagem.textContent =
+            "Nenhum professor cadastrado.";
+
+        elementos.lista.appendChild(
+            mensagem
+        );
+
+        elementos.lista.hidden = false;
         return;
     }
 
     const fragmento =
         document.createDocumentFragment();
 
-    alunos.forEach((aluno) => {
+    professores.forEach((professor) => {
         fragmento.appendChild(
-            criarItemAluno(aluno)
+            criarItemProfessor(professor)
         );
     });
 
-    elementos.lista.appendChild(fragmento);
+    elementos.lista.appendChild(
+        fragmento
+    );
+
     elementos.lista.hidden = false;
 }
 
 /**
- * Renderiza os dados do aluno selecionado.
+ * Renderiza os dados do professor selecionado.
  *
- * @param {Object} aluno
+ * @param {Object} professor
  */
-export function mostrarAlunoSelecionado(aluno) {
-    const elementos =
-        obterElementos();
-
-    ocultarLoading(elementos);
-    ocultarEstado(elementos);
-    ocultarLista(elementos);
-
-    elementos.editor.replaceChildren(
-        criarDetalheAluno(aluno)
-    );
-
-    elementos.editor.hidden = false;
-}
-
-/**
- * Mostra formulário local de criação.
- */
-export function mostrarFormularioNovoAluno() {
-    const elementos =
-        obterElementos();
-
-    ocultarLoading(elementos);
-    ocultarEstado(elementos);
-    ocultarLista(elementos);
-
-    elementos.editor.replaceChildren(
-        criarFormularioNovoAluno()
-    );
-
-    elementos.editor.hidden = false;
-}
-
-/**
- * Mostra formulário local de edição.
- *
- * @param {Object} aluno
- */
-export function mostrarFormularioEdicaoAluno(
-    aluno
+export function mostrarProfessorSelecionado(
+    professor
 ) {
     const elementos =
         obterElementos();
@@ -282,8 +245,40 @@ export function mostrarFormularioEdicaoAluno(
     ocultarLista(elementos);
 
     elementos.editor.replaceChildren(
-        criarFormularioEdicaoAluno(
-            aluno
+        criarDetalheProfessor(professor)
+    );
+
+    elementos.editor.hidden = false;
+}
+
+export function mostrarFormularioNovoProfessor() {
+    const elementos =
+        obterElementos();
+
+    ocultarLoading(elementos);
+    ocultarEstado(elementos);
+    ocultarLista(elementos);
+
+    elementos.editor.replaceChildren(
+        criarFormularioNovoProfessor()
+    );
+
+    elementos.editor.hidden = false;
+}
+
+export function mostrarFormularioEdicaoProfessor(
+    professor
+) {
+    const elementos =
+        obterElementos();
+
+    ocultarLoading(elementos);
+    ocultarEstado(elementos);
+    ocultarLista(elementos);
+
+    elementos.editor.replaceChildren(
+        criarFormularioEdicaoProfessor(
+            professor
         )
     );
 
@@ -291,12 +286,12 @@ export function mostrarFormularioEdicaoAluno(
 }
 
 /**
- * Exibe uma mensagem geral do módulo.
+ * Exibe uma mensagem geral do mÃ³dulo.
  *
  * @param {string} texto
  * @param {"info" | "success" | "warning" | "error"} tipo
  */
-export function mostrarEstadoAlunos(
+export function mostrarEstadoProfessores(
     texto,
     tipo = "info"
 ) {
@@ -304,8 +299,34 @@ export function mostrarEstadoAlunos(
         obterElementos();
 
     ocultarLoading(elementos);
+    ocultarLista(elementos);
+    ocultarEditor(elementos);
 
-    elementos.estado.textContent = texto;
+    elementos.estado.textContent =
+        texto;
+
+    elementos.estado.className =
+        `feedback feedback--${tipo}`;
+
+    elementos.estado.hidden = false;
+}
+
+/**
+ * Exibe feedback sem ocultar o conteúdo atual do módulo.
+ *
+ * @param {string} texto
+ * @param {"info" | "success" | "warning" | "error"} tipo
+ */
+export function mostrarFeedbackProfessores(
+    texto,
+    tipo = "info"
+) {
+    const elementos =
+        obterElementos();
+
+    elementos.estado.textContent =
+        texto;
+
     elementos.estado.className =
         `feedback feedback--${tipo}`;
 
@@ -317,14 +338,12 @@ export function mostrarEstadoAlunos(
  *
  * Durante uma persistência:
  * - bloqueia campos editáveis;
- * - bloqueia checkbox;
  * - bloqueia ações do formulário;
- * - preserva naturalmente campos já desabilitados,
- *   como a matrícula.
+ * - restaura o estado anterior dos controles ao finalizar.
  *
  * @param {boolean} ocupado
  */
-export function definirEditorAlunosOcupado(
+export function definirEditorProfessoresOcupado(
     ocupado
 ) {
     const elementos =
@@ -335,27 +354,27 @@ export function definirEditorAlunosOcupado(
             "input, select, textarea, button"
         );
 
-	controles.forEach((controle) => {
-		if (ocupado === true) {
-			controle.dataset.disabledAntesPersistencia =
-				controle.disabled
-					? "true"
-					: "false";
+    controles.forEach((controle) => {
+        if (ocupado === true) {
+            controle.dataset.disabledAntesPersistencia =
+                controle.disabled
+                    ? "true"
+                    : "false";
 
-			controle.disabled = true;
-			return;
-		}
+            controle.disabled = true;
+            return;
+        }
 
-		const estavaDesabilitado =
-			controle.dataset.disabledAntesPersistencia ===
-			"true";
+        const estavaDesabilitado =
+            controle.dataset.disabledAntesPersistencia ===
+            "true";
 
-		controle.disabled =
-			estavaDesabilitado;
+        controle.disabled =
+            estavaDesabilitado;
 
-		delete controle.dataset
-			.disabledAntesPersistencia;
-	});
+        delete controle.dataset
+            .disabledAntesPersistencia;
+    });
 
     elementos.editor.setAttribute(
         "aria-busy",
@@ -365,144 +384,49 @@ export function definirEditorAlunosOcupado(
     );
 }
 
-/**
- * Cria ações superiores da listagem.
- *
- * @returns {HTMLElement}
- */
 function criarAcoesLista() {
     const acoes =
         document.createElement("div");
 
     acoes.className =
-        "admin-students-list__actions";
+        "admin-user-editor__actions";
 
-    const botaoNovo =
+    const novo =
         document.createElement("button");
 
-    botaoNovo.type = "button";
-    botaoNovo.className =
+    novo.type =
+        "button";
+
+    novo.className =
         "button button--primary";
 
-    botaoNovo.textContent =
-        "Novo aluno";
+    novo.textContent =
+        "Novo professor";
 
-    botaoNovo.addEventListener(
+    novo.addEventListener(
         "click",
         () => {
-            if (callbackNovoAluno) {
-                callbackNovoAluno();
+            if (callbackNovoProfessor) {
+                callbackNovoProfessor();
             }
         }
     );
 
     acoes.appendChild(
-        botaoNovo
+        novo
     );
 
     return acoes;
 }
 
-/**
- * Cria o detalhe do aluno selecionado.
- *
- * @param {Object} aluno
- * @returns {HTMLElement}
- */
-function criarDetalheAluno(aluno) {
-    const detalhe =
-        document.createElement("section");
-
-    detalhe.className =
-        "admin-student-detail";
-
-    const titulo =
-        document.createElement("h4");
-
-    titulo.className =
-        "admin-student-detail__title";
-
-    titulo.textContent =
-        aluno.nome || "Aluno sem nome";
-
-    detalhe.append(
-        titulo,
-        criarCampoDetalhe(
-            "Matrícula",
-            aluno.matricula || "Não informada"
-        ),
-        criarCampoDetalhe(
-            "Faixa",
-            aluno.faixa || "Não informada"
-        ),
-        criarCampoDetalhe(
-            "Status",
-            aluno.ativo === true
-                ? "Ativo"
-                : "Inativo"
-        )
-    );
-
-    const acoes =
-        document.createElement("div");
-
-    acoes.className =
-        "admin-student-detail__actions";
-
-    const botaoEditar =
-        document.createElement("button");
-
-    botaoEditar.type = "button";
-    botaoEditar.className =
-        "button button--primary";
-
-    botaoEditar.dataset.acaoEditor =
-        "editar";
-
-    botaoEditar.textContent =
-        "Editar";
-
-    const botaoVoltar =
-        document.createElement("button");
-
-    botaoVoltar.type = "button";
-    botaoVoltar.className =
-        "button button--secondary";
-
-    botaoVoltar.dataset.acaoEditor =
-        "voltar";
-
-    botaoVoltar.textContent =
-        "Voltar para a lista";
-
-    acoes.append(
-        botaoEditar,
-        botaoVoltar
-    );
-
-    detalhe.appendChild(
-        acoes
-    );
-
-    return detalhe;
-}
-
-/**
- * Cria formulário local para novo aluno.
- *
- * A matrícula não faz parte do formulário porque será
- * definida futuramente pela transação autorizada.
- *
- * @returns {HTMLFormElement}
- */
-function criarFormularioNovoAluno() {
+function criarFormularioNovoProfessor() {
     const formulario =
         document.createElement("form");
 
     formulario.className =
         "admin-student-form";
 
-    formulario.dataset.alunoEditor =
+    formulario.dataset.professorEditor =
         "novo";
 
     const titulo =
@@ -512,17 +436,7 @@ function criarFormularioNovoAluno() {
         "admin-student-detail__title";
 
     titulo.textContent =
-        "Novo aluno";
-
-    const ajuda =
-        document.createElement("p");
-
-    ajuda.className =
-        "form-field__help";
-
-    ajuda.textContent =
-        "A matrícula será gerada automaticamente " +
-        "quando o cadastro for persistido.";
+        "Novo professor";
 
     const campoNome =
         criarCampoTexto({
@@ -531,15 +445,6 @@ function criarFormularioNovoAluno() {
             valor: "",
             obrigatorio: true,
             autocomplete: "name"
-        });
-
-    const campoFaixa =
-        criarCampoTexto({
-            nome: "faixa",
-            rotulo: "Faixa",
-            valor: "",
-            obrigatorio: true,
-            autocomplete: "off"
         });
 
     const estadoInicial =
@@ -550,14 +455,12 @@ function criarFormularioNovoAluno() {
 
     const acoes =
         criarAcoesFormulario(
-            "Cadastrar aluno"
+			"Cadastrar professor"
         );
 
     formulario.append(
         titulo,
-        ajuda,
         campoNome,
-        campoFaixa,
         estadoInicial,
         acoes
     );
@@ -565,14 +468,8 @@ function criarFormularioNovoAluno() {
     return formulario;
 }
 
-/**
- * Cria formulário local de edição.
- *
- * @param {Object} aluno
- * @returns {HTMLFormElement}
- */
-function criarFormularioEdicaoAluno(
-    aluno
+function criarFormularioEdicaoProfessor(
+    professor
 ) {
     const formulario =
         document.createElement("form");
@@ -580,7 +477,7 @@ function criarFormularioEdicaoAluno(
     formulario.className =
         "admin-student-form";
 
-    formulario.dataset.alunoEditor =
+    formulario.dataset.professorEditor =
         "edicao";
 
     const titulo =
@@ -590,50 +487,21 @@ function criarFormularioEdicaoAluno(
         "admin-student-detail__title";
 
     titulo.textContent =
-        "Editar aluno";
-
-    const matricula =
-        criarCampoTexto({
-            nome: "matricula",
-            rotulo: "Matrícula",
-            valor:
-                aluno.matricula || "",
-            obrigatorio: false,
-            desabilitado: true
-        });
-
-    const ajudaMatricula =
-        document.createElement("p");
-
-    ajudaMatricula.className =
-        "form-field__help";
-
-    ajudaMatricula.textContent =
-        "A matrícula é protegida e não pode ser alterada.";
+        "Editar professor";
 
     const campoNome =
         criarCampoTexto({
             nome: "nome",
             rotulo: "Nome",
             valor:
-                aluno.nome || "",
+                professor.nome || "",
             obrigatorio: true,
             autocomplete: "name"
         });
 
-    const campoFaixa =
-        criarCampoTexto({
-            nome: "faixa",
-            rotulo: "Faixa",
-            valor:
-                aluno.faixa || "",
-            obrigatorio: true,
-            autocomplete: "off"
-        });
-
     const campoAtivo =
         criarCampoAtivo(
-            aluno.ativo === true
+            professor.ativo === true
         );
 
     const acoes =
@@ -643,10 +511,7 @@ function criarFormularioEdicaoAluno(
 
     formulario.append(
         titulo,
-        matricula,
-        ajudaMatricula,
         campoNome,
-        campoFaixa,
         campoAtivo,
         acoes
     );
@@ -654,27 +519,12 @@ function criarFormularioEdicaoAluno(
     return formulario;
 }
 
-/**
- * Cria campo textual reutilizável.
- *
- * @param {{
- *     nome: string,
- *     rotulo: string,
- *     valor: string,
- *     obrigatorio?: boolean,
- *     desabilitado?: boolean,
- *     autocomplete?: string
- * }} opcoes
- *
- * @returns {HTMLElement}
- */
 function criarCampoTexto(
     {
         nome,
         rotulo,
         valor,
         obrigatorio = false,
-        desabilitado = false,
         autocomplete = "off"
     }
 ) {
@@ -691,7 +541,7 @@ function criarCampoTexto(
         "form-field__label";
 
     label.htmlFor =
-        `adminAluno_${nome}`;
+        `adminProfessor_${nome}`;
 
     label.textContent =
         rotulo;
@@ -700,7 +550,7 @@ function criarCampoTexto(
         document.createElement("input");
 
     input.id =
-        `adminAluno_${nome}`;
+        `adminProfessor_${nome}`;
 
     input.name =
         nome;
@@ -717,9 +567,6 @@ function criarCampoTexto(
     input.required =
         obrigatorio;
 
-    input.disabled =
-        desabilitado;
-
     input.autocomplete =
         autocomplete;
 
@@ -732,7 +579,7 @@ function criarCampoTexto(
 }
 
 /**
- * Cria controle local do status operacional.
+ * Cria o controle do estado operacional do professor.
  *
  * @param {boolean} ativo
  * @returns {HTMLElement}
@@ -776,16 +623,16 @@ function criarCampoAtivo(ativo) {
 
     texto.textContent =
         input.checked
-            ? "Aluno ativo"
-            : "Aluno inativo";
+            ? "Professor ativo"
+            : "Professor inativo";
 
     input.addEventListener(
         "change",
         () => {
             texto.textContent =
                 input.checked
-                    ? "Aluno ativo"
-                    : "Aluno inativo";
+                    ? "Professor ativo"
+                    : "Professor inativo";
         }
     );
 
@@ -802,12 +649,6 @@ function criarCampoAtivo(ativo) {
     return grupo;
 }
 
-/**
- * Cria botões do formulário local.
- *
- * @param {string} textoPrincipal
- * @returns {HTMLElement}
- */
 function criarAcoesFormulario(
     textoPrincipal
 ) {
@@ -853,12 +694,12 @@ function criarAcoesFormulario(
 }
 
 /**
- * Cria item clicável da listagem.
+ * Cria item clicÃ¡vel da listagem.
  *
- * @param {Object} aluno
+ * @param {Object} professor
  * @returns {HTMLButtonElement}
  */
-function criarItemAluno(aluno) {
+function criarItemProfessor(professor) {
     const botao =
         document.createElement("button");
 
@@ -872,18 +713,16 @@ function criarItemAluno(aluno) {
         document.createElement("strong");
 
     nome.textContent =
-        aluno.nome || "Aluno sem nome";
+        professor.nome ||
+        "Professor sem nome";
 
     const detalhes =
         document.createElement("span");
 
-    detalhes.textContent = [
-        aluno.matricula || "Sem matrícula",
-        aluno.faixa || "Faixa não informada",
-        aluno.ativo === true
+    detalhes.textContent =
+        professor.ativo === true
             ? "Ativo"
-            : "Inativo"
-    ].join(" • ");
+            : "Inativo";
 
     botao.append(
         nome,
@@ -893,15 +732,100 @@ function criarItemAluno(aluno) {
     botao.addEventListener(
         "click",
         () => {
-            if (callbackSelecionarAluno) {
-                callbackSelecionarAluno(
-                    aluno.id
+            if (callbackSelecionarProfessor) {
+                callbackSelecionarProfessor(
+                    professor.id
                 );
             }
         }
     );
 
     return botao;
+}
+
+/**
+ * Cria o detalhe do professor selecionado.
+ *
+ * NÃ£o expÃµe campos tÃ©cnicos administrativos.
+ *
+ * @param {Object} professor
+ * @returns {HTMLElement}
+ */
+function criarDetalheProfessor(
+    professor
+) {
+    const detalhe =
+        document.createElement("section");
+
+    detalhe.className =
+        "admin-student-detail";
+
+    const titulo =
+        document.createElement("h4");
+
+    titulo.className =
+        "admin-student-detail__title";
+
+    titulo.textContent =
+        professor.nome ||
+        "Professor sem nome";
+
+    detalhe.append(
+        titulo,
+        criarCampoDetalhe(
+            "Status",
+            professor.ativo === true
+                ? "Ativo"
+                : "Inativo"
+        )
+    );
+
+    const acoes =
+        document.createElement("div");
+
+    acoes.className =
+        "admin-student-detail__actions";
+
+    const botaoEditar =
+        document.createElement("button");
+
+    botaoEditar.type =
+        "button";
+
+    botaoEditar.className =
+        "button button--primary";
+
+    botaoEditar.dataset.acaoEditor =
+        "editar";
+
+    botaoEditar.textContent =
+        "Editar";
+
+    const botaoVoltar =
+        document.createElement("button");
+
+    botaoVoltar.type =
+        "button";
+
+    botaoVoltar.className =
+        "button button--secondary";
+
+    botaoVoltar.textContent =
+        "Voltar para a lista";
+
+    botaoVoltar.dataset.acaoEditor =
+        "voltar";
+
+    acoes.append(
+        botaoEditar,
+        botaoVoltar
+    );
+
+    detalhe.appendChild(
+        acoes
+    );
+
+    return detalhe;
 }
 
 /**
@@ -941,11 +865,6 @@ function criarCampoDetalhe(
     return linha;
 }
 
-/**
- * Processa submit dos formulários locais.
- *
- * @param {SubmitEvent} evento
- */
 function tratarSubmitEditor(evento) {
     const formulario =
         evento.target;
@@ -957,7 +876,7 @@ function tratarSubmitEditor(evento) {
     }
 
     const tipo =
-        formulario.dataset.alunoEditor;
+        formulario.dataset.professorEditor;
 
     if (
         tipo !== "novo" &&
@@ -973,28 +892,24 @@ function tratarSubmitEditor(evento) {
             'input[name="nome"]'
         );
 
-    const faixa =
-        formulario.querySelector(
-            'input[name="faixa"]'
-        );
+    if (!(nome instanceof HTMLInputElement)) {
+        return;
+    }
 
-    if (
-        !(nome instanceof HTMLInputElement) ||
-        !(faixa instanceof HTMLInputElement)
-    ) {
+    const nomeNormalizado =
+        nome.value.trim();
+
+    if (nomeNormalizado === "") {
+        nome.focus();
         return;
     }
 
     if (
         tipo === "novo" &&
-        callbackPrepararNovoAluno
+        callbackPrepararNovoProfessor
     ) {
-        callbackPrepararNovoAluno({
-            nome:
-                nome.value,
-
-            faixa:
-                faixa.value
+        callbackPrepararNovoProfessor({
+            nome: nomeNormalizado
         });
 
         return;
@@ -1002,33 +917,24 @@ function tratarSubmitEditor(evento) {
 
     if (
         tipo === "edicao" &&
-        callbackPrepararEdicaoAluno
+        callbackPrepararEdicaoProfessor
     ) {
         const ativo =
             formulario.querySelector(
                 'input[name="ativo"]'
             );
 
-        callbackPrepararEdicaoAluno({
-            nome:
-                nome.value,
+        if (!(ativo instanceof HTMLInputElement)) {
+            return;
+        }
 
-            faixa:
-                faixa.value,
-
-            ativo:
-                ativo instanceof HTMLInputElement
-                    ? ativo.checked
-                    : false
+        callbackPrepararEdicaoProfessor({
+            nome: nomeNormalizado,
+            ativo: ativo.checked
         });
     }
 }
 
-/**
- * Processa ações auxiliares do editor.
- *
- * @param {MouseEvent} evento
- */
 function tratarCliqueEditor(evento) {
     const alvo =
         evento.target instanceof Element
@@ -1037,9 +943,7 @@ function tratarCliqueEditor(evento) {
             )
             : null;
 
-    if (
-        !(alvo instanceof HTMLButtonElement)
-    ) {
+    if (!(alvo instanceof HTMLButtonElement)) {
         return;
     }
 
@@ -1048,9 +952,9 @@ function tratarCliqueEditor(evento) {
 
     if (
         acao === "editar" &&
-        callbackEditarAluno
+        callbackEditarProfessor
     ) {
-        callbackEditarAluno();
+        callbackEditarProfessor();
         return;
     }
 
@@ -1071,51 +975,9 @@ function tratarCliqueEditor(evento) {
 }
 
 /**
- * Oculta o carregamento.
- *
- * @param {ReturnType<typeof obterElementos>} elementos
- */
-function ocultarLoading(elementos) {
-    elementos.loading.hidden = true;
-}
-
-/**
- * Oculta a listagem.
- *
- * @param {ReturnType<typeof obterElementos>} elementos
- */
-function ocultarLista(elementos) {
-    elementos.lista.hidden = true;
-}
-
-/**
- * Oculta o editor.
- *
- * @param {ReturnType<typeof obterElementos>} elementos
- */
-function ocultarEditor(elementos) {
-    elementos.editor.replaceChildren();
-    elementos.editor.hidden = true;
-}
-
-/**
- * Oculta o estado geral.
- *
- * @param {ReturnType<typeof obterElementos>} elementos
- */
-function ocultarEstado(elementos) {
-    elementos.estado.textContent = "";
-    elementos.estado.className =
-        "feedback";
-
-    elementos.estado.hidden = true;
-}
-
-/**
- * Obtém elementos estruturais do módulo.
+ * ObtÃ©m e valida os elementos estruturais do mÃ³dulo.
  *
  * @returns {{
- *     painel: HTMLElement,
  *     estado: HTMLElement,
  *     loading: HTMLElement,
  *     lista: HTMLElement,
@@ -1123,66 +985,70 @@ function ocultarEstado(elementos) {
  * }}
  */
 function obterElementos() {
-    const painel =
-        document.getElementById(
-            "painelAdminAlunos"
-        );
-
     const estado =
         document.getElementById(
-            "estadoAdminAlunos"
+            "estadoAdminProfessores"
         );
 
     const loading =
         document.getElementById(
-            "loadingAdminAlunos"
+            "loadingAdminProfessores"
         );
 
     const lista =
         document.getElementById(
-            "listaAdminAlunos"
+            "listaAdminProfessores"
         );
 
     const editor =
         document.getElementById(
-            "editorAdminAlunos"
+            "editorAdminProfessores"
         );
-
-    if (!painel) {
-        throw new Error(
-            'O painel "#painelAdminAlunos" não foi encontrado.'
-        );
-    }
 
     if (!estado) {
         throw new Error(
-            'O estado "#estadoAdminAlunos" não foi encontrado.'
+            'O elemento "#estadoAdminProfessores" nÃ£o foi encontrado.'
         );
     }
 
     if (!loading) {
         throw new Error(
-            'O loading "#loadingAdminAlunos" não foi encontrado.'
+            'O elemento "#loadingAdminProfessores" nÃ£o foi encontrado.'
         );
     }
 
     if (!lista) {
         throw new Error(
-            'A lista "#listaAdminAlunos" não foi encontrada.'
+            'O elemento "#listaAdminProfessores" nÃ£o foi encontrado.'
         );
     }
 
     if (!editor) {
         throw new Error(
-            'O editor "#editorAdminAlunos" não foi encontrado.'
+            'O elemento "#editorAdminProfessores" nÃ£o foi encontrado.'
         );
     }
 
     return {
-        painel,
         estado,
         loading,
         lista,
         editor
     };
+}
+
+function ocultarEstado(elementos) {
+    elementos.estado.hidden = true;
+}
+
+function ocultarLoading(elementos) {
+    elementos.loading.hidden = true;
+}
+
+function ocultarLista(elementos) {
+    elementos.lista.hidden = true;
+}
+
+function ocultarEditor(elementos) {
+    elementos.editor.hidden = true;
 }

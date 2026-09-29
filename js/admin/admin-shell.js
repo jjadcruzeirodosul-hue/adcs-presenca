@@ -31,6 +31,7 @@ import {
 let moduloInicializado = false;
 let callbackAntesAdministracao = null;
 let callbackDepoisAdministracao = null;
+let callbackDepoisOperacao = null;
 let callbackModuloAdministrativoSelecionado = null;
 
 /**
@@ -39,6 +40,7 @@ let callbackModuloAdministrativoSelecionado = null;
  * @param {{
  *     onAntesEntrarAdministracao?: () => Promise<void> | void,
  *     onDepoisEntrarAdministracao?: () => Promise<void> | void,
+ *     onDepoisEntrarOperacao?: () => Promise<void> | void,
  *     onModuloAdministrativoSelecionado?: (modulo: string) => void
  * }} opcoes
  */
@@ -46,6 +48,7 @@ export function initAdminShell(
     {
         onAntesEntrarAdministracao = null,
         onDepoisEntrarAdministracao = null,
+        onDepoisEntrarOperacao = null,
         onModuloAdministrativoSelecionado = null
     } = {}
 ) {
@@ -63,6 +66,11 @@ export function initAdminShell(
             ? onDepoisEntrarAdministracao
             : null;
 
+    callbackDepoisOperacao =
+        typeof onDepoisEntrarOperacao === "function"
+            ? onDepoisEntrarOperacao
+            : null;
+
     callbackModuloAdministrativoSelecionado =
         typeof onModuloAdministrativoSelecionado === "function"
             ? onModuloAdministrativoSelecionado
@@ -73,7 +81,7 @@ export function initAdminShell(
     elementos.btnOperacao.addEventListener(
         "click",
         () => {
-            mostrarAreaOperacional();
+            void solicitarAreaOperacional();
         }
     );
 
@@ -149,6 +157,19 @@ function mostrarAreaOperacional() {
     atualizarEstadoNavegacaoPrincipal({
         operacaoAtiva: true
     });
+}
+
+/**
+ * Solicita retorno ao contexto operacional.
+ *
+ * @returns {Promise<void>}
+ */
+async function solicitarAreaOperacional() {
+    mostrarAreaOperacional();
+
+    if (callbackDepoisOperacao) {
+        await callbackDepoisOperacao();
+    }
 }
 
 /**

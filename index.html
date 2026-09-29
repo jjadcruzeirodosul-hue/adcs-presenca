@@ -803,6 +803,7 @@
 							hidden
 						></section>
 					</section>
+
                     <section
                         id="painelAdminProfessores"
                         class="admin-module-placeholder"
@@ -821,11 +822,51 @@
                         </h3>
 
                         <p class="admin-module-placeholder__description">
-                            Estrutura preparada para a S4-005.
-                            Nenhuma funcionalidade de cadastro ou manutenção
-                            de professores está disponível nesta entrega.
+                            Consulte e administre os professores cadastrados
+                            no ADCS Presença.
                         </p>
+
+                        <div
+                            id="estadoAdminProfessores"
+                            class="feedback"
+                            role="status"
+                            aria-live="polite"
+                            aria-atomic="true"
+                            hidden
+                        ></div>
+
+                        <div
+                            id="loadingAdminProfessores"
+                            class="loading"
+                            role="status"
+                            aria-live="polite"
+                            hidden
+                        >
+                            <span
+                                class="loading__spinner"
+                                aria-hidden="true"
+                            ></span>
+
+                            <span>
+                                Carregando professores...
+                            </span>
+                        </div>
+
+                        <div
+                            id="listaAdminProfessores"
+                            class="admin-students-list"
+                            aria-label="Professores cadastrados"
+                            hidden
+                        ></div>
+
+                        <section
+                            id="editorAdminProfessores"
+                            class="admin-students-editor"
+                            aria-label="Cadastro e edição de professor"
+                            hidden
+                        ></section>
                     </section>
+
                 </div>
             </section>
         </main>
