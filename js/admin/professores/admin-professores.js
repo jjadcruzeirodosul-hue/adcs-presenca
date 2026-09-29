@@ -291,14 +291,20 @@ async function prepararNovoProfessor(dados) {
             );
         }
 
-        professorSelecionado =
-            professorCriado;
+        const professores =
+            await listarProfessoresAdministrativos();
 
-        mostrarProfessorSelecionado(
-            professorCriado
-        );
+        professorSelecionado = null;
 
-        mostrarEstadoProfessores(
+        if (professores.length === 0) {
+            mostrarListaVaziaProfessores();
+        } else {
+            mostrarListaProfessores(
+                professores
+            );
+        }
+
+        mostrarFeedbackProfessores(
             "Professor criado com sucesso.",
             "success"
         );
