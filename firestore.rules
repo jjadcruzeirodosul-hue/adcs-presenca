@@ -1639,20 +1639,6 @@ service cloud.firestore {
        */
       allow get, list: if false;
 
-		/*
-		 * FB-05
-		 *
-		 * UPDATE permitido somente quando o contador participa
-		 * da criação atômica de um novo aluno.
-		 *
-		 * CREATE e DELETE permanecem proibidos.
-		 */
-		allow update: if
-		  atualizacaoContadorParaCriacaoAlunoValida(
-			resource.data,
-			request.resource.data
-		  );
-
 		allow create, delete: if false;
     }
 
