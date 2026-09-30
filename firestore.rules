@@ -1439,15 +1439,37 @@ service cloud.firestore {
 	let professor = getAfter(caminho).data;
 
 	return evento.acao == "PROFESSOR_CRIADO"
-		  && !exists(caminho)
-		  && existsAfter(caminho)
-		  && estadoProfessorAdministrativoValido(professor)
-		  && professor.ativo == true
-		  && professor.ultimaOperacaoId == evento.operacaoId
-		  && professor.atualizadoPor == request.auth.uid
-		  && professor.atualizadoEm == request.time
-		  && evento.before == null
-		  && evento.after is map;
+			  && !exists(caminho)
+			  && existsAfter(caminho)
+			  && estadoProfessorAdministrativoValido(professor)
+			  && professor.ativo == true
+			  && professor.ultimaOperacaoId == evento.operacaoId
+			  && professor.atualizadoPor == request.auth.uid
+			  && professor.atualizadoEm == request.time
+			  && evento.before == null
+
+			  && evento.after is map
+			  && evento.after.keys().hasOnly([
+					"nome",
+					"ativo"
+			  ])
+			  && evento.after.keys().hasAll([
+					"nome",
+					"ativo"
+			  ])
+			  && evento.after.nome == professor.nome
+			  && evento.after.ativo == professor.ativo
+
+			  && evento.camposAlterados.size() == 2
+			  && evento.camposAlterados.toSet().size() == 2
+			  && evento.camposAlterados.toSet().hasOnly([
+					"nome",
+					"ativo"
+			  ])
+			  && evento.camposAlterados.toSet().hasAll([
+					"nome",
+					"ativo"
+			  ]);
 	}
 
 	function professorCorrespondenteAtualizadoValido(evento) {
