@@ -1344,21 +1344,51 @@ service cloud.firestore {
 	 */
 
 	function auditoriaCriacaoAlunoValida(evento) {
-	  let caminho = caminhoAluno(evento.entidadeId);
-	  let aluno = getAfter(caminho).data;
-	  let contador =
-		getAfter(caminhoContadorMatriculasAlunos()).data;
+	 let caminho = caminhoAluno(evento.entidadeId);
+	 let aluno = getAfter(caminho).data;
+	 let contador =
+		   getAfter(caminhoContadorMatriculasAlunos()).data;
 
-	  return evento.acao == "ALUNO_CRIADO"
-		&& !exists(caminho)
-		&& existsAfter(caminho)
-		&& aluno.ultimaOperacaoId == evento.operacaoId
-		&& aluno.atualizadoPor == request.auth.uid
-		&& aluno.atualizadoEm == request.time
-		&& contador.ultimaOperacaoId == evento.operacaoId
-		&& contador.ultimoAlunoId == evento.entidadeId
-		&& evento.before == null
-		&& evento.after is map;
+	 return evento.acao == "ALUNO_CRIADO"
+		   && !exists(caminho)
+		   && existsAfter(caminho)
+		   && aluno.ultimaOperacaoId == evento.operacaoId
+		   && aluno.atualizadoPor == request.auth.uid
+		   && aluno.atualizadoEm == request.time
+		   && contador.ultimaOperacaoId == evento.operacaoId
+		   && contador.ultimoAlunoId == evento.entidadeId
+		   && evento.before == null
+
+		   && evento.after is map
+		   && evento.after.keys().hasOnly([
+			 "nome",
+			 "faixa",
+			 "matricula",
+			 "ativo"
+		   ])
+		   && evento.after.keys().hasAll([
+			 "nome",
+			 "faixa",
+			 "matricula",
+			 "ativo"
+		   ])
+		   && evento.after.nome == aluno.nome
+		   && evento.after.faixa == aluno.faixa
+		   && evento.after.matricula == aluno.matricula
+		   && evento.after.ativo == aluno.ativo
+
+		   && evento.camposAlterados.size() == 3
+		   && evento.camposAlterados.toSet().size() == 3
+		   && evento.camposAlterados.toSet().hasOnly([
+			 "nome",
+			 "faixa",
+			 "ativo"
+		   ])
+		   && evento.camposAlterados.toSet().hasAll([
+			 "nome",
+			 "faixa",
+			 "ativo"
+		   ]);
 	}
 
 	function alunoCorrespondenteAlteradoValido(
@@ -1409,15 +1439,37 @@ service cloud.firestore {
 	let professor = getAfter(caminho).data;
 
 	return evento.acao == "PROFESSOR_CRIADO"
-		  && !exists(caminho)
-		  && existsAfter(caminho)
-		  && estadoProfessorAdministrativoValido(professor)
-		  && professor.ativo == true
-		  && professor.ultimaOperacaoId == evento.operacaoId
-		  && professor.atualizadoPor == request.auth.uid
-		  && professor.atualizadoEm == request.time
-		  && evento.before == null
-		  && evento.after is map;
+			  && !exists(caminho)
+			  && existsAfter(caminho)
+			  && estadoProfessorAdministrativoValido(professor)
+			  && professor.ativo == true
+			  && professor.ultimaOperacaoId == evento.operacaoId
+			  && professor.atualizadoPor == request.auth.uid
+			  && professor.atualizadoEm == request.time
+			  && evento.before == null
+
+			  && evento.after is map
+			  && evento.after.keys().hasOnly([
+					"nome",
+					"ativo"
+			  ])
+			  && evento.after.keys().hasAll([
+					"nome",
+					"ativo"
+			  ])
+			  && evento.after.nome == professor.nome
+			  && evento.after.ativo == professor.ativo
+
+			  && evento.camposAlterados.size() == 2
+			  && evento.camposAlterados.toSet().size() == 2
+			  && evento.camposAlterados.toSet().hasOnly([
+					"nome",
+					"ativo"
+			  ])
+			  && evento.camposAlterados.toSet().hasAll([
+					"nome",
+					"ativo"
+			  ]);
 	}
 
 	function professorCorrespondenteAtualizadoValido(evento) {
@@ -1586,20 +1638,6 @@ service cloud.firestore {
        * Nesta etapa a auditoria não é exposta para leitura.
        */
       allow get, list: if false;
-
-		/*
-		 * FB-05
-		 *
-		 * UPDATE permitido somente quando o contador participa
-		 * da criação atômica de um novo aluno.
-		 *
-		 * CREATE e DELETE permanecem proibidos.
-		 */
-		allow update: if
-		  atualizacaoContadorParaCriacaoAlunoValida(
-			resource.data,
-			request.resource.data
-		  );
 
 		allow create, delete: if false;
     }
