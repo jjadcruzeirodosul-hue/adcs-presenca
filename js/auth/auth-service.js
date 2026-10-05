@@ -1,6 +1,7 @@
 import {
     signInWithEmailAndPassword,
-    onAuthStateChanged
+    onAuthStateChanged,
+    signOut
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 
 import { auth } from "../firebase.js";
@@ -17,6 +18,18 @@ async function login(email, senha) {
 }
 
 /**
+ * Encerra a sessão do usuário autenticado.
+ *
+ * A alteração do estado de autenticação será propagada
+ * aos demais módulos por meio de observarAutenticacao().
+ *
+ * @returns {Promise<void>}
+ */
+async function logout() {
+    return signOut(auth);
+}
+
+/**
  * Observa as alterações no estado de autenticação.
  *
  * @param {function} callback
@@ -28,5 +41,6 @@ function observarAutenticacao(callback) {
 
 export {
     login,
+    logout,
     observarAutenticacao
 };

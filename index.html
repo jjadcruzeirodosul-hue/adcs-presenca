@@ -13,7 +13,7 @@
         content="Sistema de registro de presença dos alunos do Jiu-Jitsu ADCS."
     >
 
-    <title>Registro de Presença | ADCS Jiu-Jitsu</title>
+    <title>ADCS Presença | ADCS Jiu-Jitsu</title>
 
     <link rel="stylesheet" href="./style.css">
 </head>
@@ -24,381 +24,103 @@
         class="auth-page"
         aria-labelledby="tituloLogin"
     >
-        <div class="auth-card">
-            <header class="auth-card__header">
-                <p class="auth-card__eyebrow">
+        <div class="auth-shell">
+            <div class="auth-brand">
+                <p class="auth-brand__eyebrow">
                     ADCS Jiu-Jitsu
                 </p>
 
-                <h1
-                    id="tituloLogin"
-                    class="auth-card__title"
-                >
-                    Acesso ao sistema
+                <h1 class="auth-brand__title">
+                    ADCS Presença
                 </h1>
 
-                <p class="auth-card__description">
-                    Entre com suas credenciais para acessar o registro
-                    de presença.
-                </p>
-            </header>
-
-            <form
-                id="formLogin"
-                class="auth-form"
-                novalidate
-            >
-                <div class="form-field">
-                    <label
-                        for="emailLogin"
-                        class="form-field__label"
-                    >
-                        E-mail
-                    </label>
-
-                    <input
-                        id="emailLogin"
-                        name="email"
-                        class="form-field__control"
-                        type="email"
-                        inputmode="email"
-                        autocomplete="username"
-                        placeholder="Informe seu e-mail"
-                        required
-                    >
-                </div>
-
-                <div class="form-field">
-                    <label
-                        for="senhaLogin"
-                        class="form-field__label"
-                    >
-                        Senha
-                    </label>
-
-                    <input
-                        id="senhaLogin"
-                        name="senha"
-                        class="form-field__control"
-                        type="password"
-                        autocomplete="current-password"
-                        placeholder="Informe sua senha"
-                        required
-                    >
-                </div>
-
-                <button
-                    id="btnEntrar"
-                    class="button button--primary button--full"
-                    type="submit"
-                >
-                    <span
-                        class="button__icon"
-                        aria-hidden="true"
-                    >
-                        →
-                    </span>
-
-                    <span class="button__text">
-                        Entrar
-                    </span>
-                </button>
-            </form>
-
-            <div
-                id="loadingLogin"
-                class="loading"
-                role="status"
-                aria-live="polite"
-                hidden
-            >
-                <span
-                    class="loading__spinner"
-                    aria-hidden="true"
-                ></span>
-
-                <span id="loadingLoginTexto">
-                    Autenticando...
-                </span>
-            </div>
-
-            <div
-                id="mensagemLogin"
-                class="feedback"
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-                hidden
-            ></div>
-        </div>
-    </section>
-
-    <div
-        id="appOperacional"
-        class="app"
-        hidden
-    >
-        <header class="app-header">
-            <div class="app-header__content">
-                <p class="app-header__eyebrow">
-                    ADCS Jiu-Jitsu
-                </p>
-
-                <h1 class="app-header__title">
-                    Registro de Presença
-                </h1>
-
-                <p class="app-header__description">
-                    Selecione o professor responsável e escolha como deseja
-                    registrar o aluno.
+                <p class="auth-brand__description">
+                    Registro seguro e simplificado de presença dos alunos.
                 </p>
             </div>
 
-            <div
-                id="statusSistema"
-                class="system-status"
-                role="status"
-                aria-live="polite"
-            >
-                <span
-                    class="system-status__indicator"
-                    aria-hidden="true"
-                ></span>
+            <div class="auth-card">
+                <header class="auth-card__header">
+                    <p class="auth-card__step">
+                        Área restrita
+                    </p>
 
-                <span class="system-status__text">
-                    Sistema disponível
-                </span>
-            </div>
-        </header>
+                    <h2
+                        id="tituloLogin"
+                        class="auth-card__title"
+                    >
+                        Acesso ao sistema
+                    </h2>
 
-        <main class="app-main">
-            <section
-                class="attendance-card"
-                aria-labelledby="tituloRegistro"
-            >
-                <header class="attendance-card__header">
-                    <div>
-                        <p class="attendance-card__step">
-                            Registro de entrada
-                        </p>
-
-                        <h2
-                            id="tituloRegistro"
-                            class="attendance-card__title"
-                        >
-                            Identifique o aluno
-                        </h2>
-                    </div>
+                    <p class="auth-card__description">
+                        Entre com suas credenciais para continuar.
+                    </p>
                 </header>
 
-                <div class="form-field">
-                    <label
-                        for="professor"
-                        class="form-field__label"
-                    >
-                        Professor responsável
-                    </label>
-
-                    <select
-                        id="professor"
-                        name="professor"
-                        class="form-field__control"
-                        required
-                        aria-describedby="ajudaProfessor"
-                    >
-                        <option value="">
-                            Selecione o professor
-                        </option>
-                    </select>
-
-                    <p
-                        id="ajudaProfessor"
-                        class="form-field__help"
-                    >
-                        Selecione quem está responsável pela aula.
-                    </p>
-                </div>
-
-                <nav
-                    class="registration-mode"
-                    aria-label="Modo de registro da presença"
+                <form
+                    id="formLogin"
+                    class="auth-form"
+                    novalidate
                 >
+                    <div class="form-field">
+                        <label
+                            for="emailLogin"
+                            class="form-field__label"
+                        >
+                            E-mail
+                        </label>
+
+                        <input
+                            id="emailLogin"
+                            name="email"
+                            class="form-field__control"
+                            type="email"
+                            inputmode="email"
+                            autocomplete="username"
+                            placeholder="Informe seu e-mail"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-field">
+                        <label
+                            for="senhaLogin"
+                            class="form-field__label"
+                        >
+                            Senha
+                        </label>
+
+                        <input
+                            id="senhaLogin"
+                            name="senha"
+                            class="form-field__control"
+                            type="password"
+                            autocomplete="current-password"
+                            placeholder="Informe sua senha"
+                            required
+                        >
+                    </div>
+
                     <button
-                        id="btnModoManual"
-                        class="registration-mode__button registration-mode__button--active"
-                        type="button"
-                        aria-controls="painelManual"
-                        aria-pressed="true"
+                        id="btnEntrar"
+                        class="button button--primary button--full"
+                        type="submit"
                     >
-                        <span aria-hidden="true">⌨️</span>
-                        <span>Manual</span>
+                        <span
+                            class="button__icon"
+                            aria-hidden="true"
+                        >
+                            →
+                        </span>
+
+                        <span class="button__text">
+                            Entrar
+                        </span>
                     </button>
-
-                    <button
-                        id="btnModoCamera"
-                        class="registration-mode__button"
-                        type="button"
-                        aria-controls="painelCamera"
-                        aria-pressed="false"
-                    >
-                        <span aria-hidden="true">📷</span>
-                        <span>QR Code</span>
-                    </button>
-                </nav>
-
-                <section
-                    id="painelManual"
-                    class="registration-panel"
-                    aria-labelledby="tituloModoManual"
-                >
-                    <div class="registration-panel__header">
-                        <h3
-                            id="tituloModoManual"
-                            class="registration-panel__title"
-                        >
-                            Registro manual
-                        </h3>
-
-                        <p class="registration-panel__description">
-                            Digite a matrícula do aluno para registrar
-                            a presença.
-                        </p>
-                    </div>
-
-                    <form
-                        id="formRegistroManual"
-                        class="attendance-form"
-                        novalidate
-                    >
-                        <div class="form-field">
-                            <label
-                                for="matricula"
-                                class="form-field__label"
-                            >
-                                Matrícula do aluno
-                            </label>
-
-                            <input
-                                id="matricula"
-                                name="matricula"
-                                class="form-field__control"
-                                type="text"
-                                inputmode="numeric"
-                                autocomplete="off"
-                                placeholder="Digite a matrícula"
-                                aria-describedby="ajudaMatricula"
-                                required
-                            >
-
-                            <p
-                                id="ajudaMatricula"
-                                class="form-field__help"
-                            >
-                                Informe a matrícula apresentada na carteirinha
-                                do aluno.
-                            </p>
-                        </div>
-
-                        <button
-                            id="btnRegistrarManual"
-                            class="button button--primary button--full"
-                            type="submit"
-                        >
-                            <span
-                                class="button__icon"
-                                aria-hidden="true"
-                            >
-                                ✓
-                            </span>
-
-                            <span class="button__text">
-                                Registrar presença
-                            </span>
-                        </button>
-                    </form>
-                </section>
-
-                <section
-                    id="painelCamera"
-                    class="registration-panel"
-                    aria-labelledby="tituloModoCamera"
-                    hidden
-                >
-                    <div class="registration-panel__header">
-                        <h3
-                            id="tituloModoCamera"
-                            class="registration-panel__title"
-                        >
-                            Leitura por QR Code
-                        </h3>
-
-                        <p class="registration-panel__description">
-                            Posicione o QR Code da carteirinha dentro
-                            da área de leitura.
-                        </p>
-                    </div>
-
-                    <div class="scanner">
-                        <div
-                            id="reader"
-                            class="scanner__reader"
-                            aria-label="Área de leitura do QR Code"
-                        ></div>
-
-                        <div
-                            id="scannerPlaceholder"
-                            class="scanner__placeholder"
-                        >
-                            <span
-                                class="scanner__placeholder-icon"
-                                aria-hidden="true"
-                            >
-                                📷
-                            </span>
-
-                            <p class="scanner__placeholder-title">
-                                Câmera desligada
-                            </p>
-
-                            <p class="scanner__placeholder-description">
-                                Ative a câmera para iniciar a leitura.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="scanner-actions">
-                        <button
-                            id="btnIniciarCamera"
-                            class="button button--primary button--full"
-                            type="button"
-                        >
-                            <span
-                                class="button__icon"
-                                aria-hidden="true"
-                            >
-                                📷
-                            </span>
-
-                            <span class="button__text">
-                                Iniciar câmera
-                            </span>
-                        </button>
-
-                        <button
-                            id="btnEncerrarCamera"
-                            class="button button--secondary button--full"
-                            type="button"
-                            hidden
-                        >
-                            <span class="button__text">
-                                Encerrar câmera
-                            </span>
-                        </button>
-                    </div>
-                </section>
+                </form>
 
                 <div
-                    id="loadingPresenca"
+                    id="loadingLogin"
                     class="loading"
                     role="status"
                     aria-live="polite"
@@ -409,64 +131,742 @@
                         aria-hidden="true"
                     ></span>
 
-                    <span id="loadingTexto">
-                        Processando...
+                    <span id="loadingLoginTexto">
+                        Autenticando...
                     </span>
                 </div>
 
                 <div
-                    id="mensagem"
+                    id="mensagemLogin"
                     class="feedback"
                     role="status"
                     aria-live="polite"
                     aria-atomic="true"
                     hidden
                 ></div>
+            </div>
+        </div>
+    </section>
+
+    <div
+        id="appOperacional"
+        class="app authenticated-app"
+        hidden
+    >
+        <header class="app-header">
+            <div class="app-header__content">
+                <p class="app-header__eyebrow">
+                    ADCS Jiu-Jitsu
+                </p>
+
+                <h1 class="app-header__title">
+                    ADCS Presença
+                </h1>
+
+                <p class="app-header__description">
+                    Operação e administração em uma única aplicação segura.
+                </p>
+            </div>
+
+            <div class="app-header__session">
+                <div
+                    id="statusSistema"
+                    class="system-status"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <span
+                        class="system-status__indicator"
+                        aria-hidden="true"
+                    ></span>
+
+                    <span class="system-status__text">
+                        Sistema disponível
+                    </span>
+                </div>
+
+                <div
+                    id="usuarioSessao"
+                    class="session-user"
+                    aria-live="polite"
+                >
+                    <div class="session-user__identity">
+                        <span
+                            class="session-user__label"
+                            aria-hidden="true"
+                        >
+                            Usuário
+                        </span>
+
+                        <strong
+                            id="usuarioSessaoNome"
+                            class="session-user__name"
+                        >
+                            Usuário autenticado
+                        </strong>
+
+                        <span
+                            id="usuarioSessaoPerfil"
+                            class="session-user__profile"
+                        >
+                            Perfil operacional
+                        </span>
+                    </div>
+
+                    <button
+                        id="btnLogout"
+                        class="button button--secondary session-user__logout"
+                        type="button"
+                    >
+                        <span
+                            class="button__icon"
+                            aria-hidden="true"
+                        >
+                            ↪
+                        </span>
+
+                        <span class="button__text">
+                            Sair
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <nav
+            id="navegacaoPrincipal"
+            class="app-navigation"
+            aria-label="Áreas da aplicação"
+        >
+            <button
+                id="btnAreaOperacional"
+                class="app-navigation__button app-navigation__button--active"
+                type="button"
+                aria-controls="areaOperacional"
+                aria-pressed="true"
+            >
+                <span aria-hidden="true">✓</span>
+                <span>Operação</span>
+            </button>
+
+            <button
+                id="btnAreaAdministrativa"
+                class="app-navigation__button"
+                type="button"
+                aria-controls="areaAdministrativa"
+                aria-pressed="false"
+                hidden
+            >
+                <span aria-hidden="true">⚙</span>
+                <span>Administração</span>
+            </button>
+        </nav>
+
+        <main class="app-main">
+            <section
+                id="avisoInatividade"
+                class="session-warning"
+                role="alert"
+                aria-live="assertive"
+                aria-atomic="true"
+                hidden
+            >
+                <div class="session-warning__content">
+                    <span
+                        class="session-warning__icon"
+                        aria-hidden="true"
+                    >
+                        ⏱
+                    </span>
+
+                    <div>
+                        <p class="session-warning__title">
+                            Sessão prestes a expirar
+                        </p>
+
+                        <p class="session-warning__description">
+                            Sua sessão será encerrada por inatividade.
+                            Interaja com a aplicação para continuar conectado.
+                        </p>
+                    </div>
+                </div>
+
+                <p
+                    id="avisoInatividadeTempo"
+                    class="session-warning__time"
+                >
+                    Sessão próxima da expiração.
+                </p>
             </section>
 
             <section
-                id="resultadoPresenca"
-                class="result-card"
-                aria-labelledby="tituloResultado"
-                aria-live="polite"
-                hidden
+                id="areaOperacional"
+                class="app-context app-context--operational"
+                aria-labelledby="tituloContextoOperacional"
             >
-                <div
-                    id="resultadoIcone"
-                    class="result-card__icon"
-                    aria-hidden="true"
-                >
-                    ✓
-                </div>
-
-                <div class="result-card__content">
-                    <p
-                        id="resultadoStatus"
-                        class="result-card__status"
-                    >
-                        Presença registrada
+                <header class="app-context__header">
+                    <p class="app-context__eyebrow">
+                        Operação
                     </p>
 
                     <h2
-                        id="tituloResultado"
-                        class="result-card__student"
+                        id="tituloContextoOperacional"
+                        class="app-context__title"
                     >
-                        Nome do aluno
+                        Registro de Presença
+                    </h2>
+                </header>
+
+                <section
+                    class="attendance-card"
+                    aria-labelledby="tituloRegistro"
+                >
+                    <header class="attendance-card__header">
+                        <div>
+                            <p class="attendance-card__step">
+                                Registro de entrada
+                            </p>
+
+                            <h2
+                                id="tituloRegistro"
+                                class="attendance-card__title"
+                            >
+                                Identifique o aluno
+                            </h2>
+                        </div>
+                    </header>
+
+                    <div class="form-field">
+                        <label
+                            for="professor"
+                            class="form-field__label"
+                        >
+                            Professor responsável
+                        </label>
+
+                        <select
+                            id="professor"
+                            name="professor"
+                            class="form-field__control"
+                            required
+                            aria-describedby="ajudaProfessor"
+                        >
+                            <option value="">
+                                Selecione o professor
+                            </option>
+                        </select>
+
+                        <p
+                            id="ajudaProfessor"
+                            class="form-field__help"
+                        >
+                            Selecione quem está responsável pela aula.
+                        </p>
+                    </div>
+
+                    <nav
+                        class="registration-mode"
+                        aria-label="Modo de registro da presença"
+                    >
+                        <button
+                            id="btnModoManual"
+                            class="registration-mode__button registration-mode__button--active"
+                            type="button"
+                            aria-controls="painelManual"
+                            aria-pressed="true"
+                        >
+                            <span aria-hidden="true">⌨️</span>
+                            <span>Manual</span>
+                        </button>
+
+                        <button
+                            id="btnModoCamera"
+                            class="registration-mode__button"
+                            type="button"
+                            aria-controls="painelCamera"
+                            aria-pressed="false"
+                        >
+                            <span aria-hidden="true">📷</span>
+                            <span>QR Code</span>
+                        </button>
+                    </nav>
+
+                    <section
+                        id="painelManual"
+                        class="registration-panel"
+                        aria-labelledby="tituloModoManual"
+                    >
+                        <div class="registration-panel__header">
+                            <h3
+                                id="tituloModoManual"
+                                class="registration-panel__title"
+                            >
+                                Registro manual
+                            </h3>
+
+                            <p class="registration-panel__description">
+                                Digite a matrícula do aluno para registrar
+                                a presença.
+                            </p>
+                        </div>
+
+                        <form
+                            id="formRegistroManual"
+                            class="attendance-form"
+                            novalidate
+                        >
+                            <div class="form-field">
+                                <label
+                                    for="matricula"
+                                    class="form-field__label"
+                                >
+                                    Matrícula do aluno
+                                </label>
+
+                                <input
+                                    id="matricula"
+                                    name="matricula"
+                                    class="form-field__control"
+                                    type="text"
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    placeholder="Digite a matrícula"
+                                    aria-describedby="ajudaMatricula"
+                                    required
+                                >
+
+                                <p
+                                    id="ajudaMatricula"
+                                    class="form-field__help"
+                                >
+                                    Informe a matrícula apresentada na carteirinha
+                                    do aluno.
+                                </p>
+                            </div>
+
+                            <button
+                                id="btnRegistrarManual"
+                                class="button button--primary button--full"
+                                type="submit"
+                            >
+                                <span
+                                    class="button__icon"
+                                    aria-hidden="true"
+                                >
+                                    ✓
+                                </span>
+
+                                <span class="button__text">
+                                    Registrar presença
+                                </span>
+                            </button>
+                        </form>
+                    </section>
+
+                    <section
+                        id="painelCamera"
+                        class="registration-panel"
+                        aria-labelledby="tituloModoCamera"
+                        hidden
+                    >
+                        <div class="registration-panel__header">
+                            <h3
+                                id="tituloModoCamera"
+                                class="registration-panel__title"
+                            >
+                                Leitura por QR Code
+                            </h3>
+
+                            <p class="registration-panel__description">
+                                Posicione o QR Code da carteirinha dentro
+                                da área de leitura.
+                            </p>
+                        </div>
+
+                        <div class="scanner">
+                            <div
+                                id="reader"
+                                class="scanner__reader"
+                                aria-label="Área de leitura do QR Code"
+                            ></div>
+
+                            <div
+                                id="scannerPlaceholder"
+                                class="scanner__placeholder"
+                            >
+                                <span
+                                    class="scanner__placeholder-icon"
+                                    aria-hidden="true"
+                                >
+                                    📷
+                                </span>
+
+                                <p class="scanner__placeholder-title">
+                                    Câmera desligada
+                                </p>
+
+                                <p class="scanner__placeholder-description">
+                                    Ative a câmera para iniciar a leitura.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="scanner-actions">
+                            <button
+                                id="btnIniciarCamera"
+                                class="button button--primary button--full"
+                                type="button"
+                            >
+                                <span
+                                    class="button__icon"
+                                    aria-hidden="true"
+                                >
+                                    📷
+                                </span>
+
+                                <span class="button__text">
+                                    Iniciar câmera
+                                </span>
+                            </button>
+
+                            <button
+                                id="btnEncerrarCamera"
+                                class="button button--secondary button--full"
+                                type="button"
+                                hidden
+                            >
+                                <span class="button__text">
+                                    Encerrar câmera
+                                </span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <div
+                        id="loadingPresenca"
+                        class="loading"
+                        role="status"
+                        aria-live="polite"
+                        hidden
+                    >
+                        <span
+                            class="loading__spinner"
+                            aria-hidden="true"
+                        ></span>
+
+                        <span id="loadingTexto">
+                            Processando...
+                        </span>
+                    </div>
+
+                    <div
+                        id="mensagem"
+                        class="feedback"
+                        role="status"
+                        aria-live="polite"
+                        aria-atomic="true"
+                        hidden
+                    ></div>
+                </section>
+
+                <section
+                    id="resultadoPresenca"
+                    class="result-card"
+                    aria-labelledby="tituloResultado"
+                    aria-live="polite"
+                    hidden
+                >
+                    <div
+                        id="resultadoIcone"
+                        class="result-card__icon"
+                        aria-hidden="true"
+                    >
+                        ✓
+                    </div>
+
+                    <div class="result-card__content">
+                        <p
+                            id="resultadoStatus"
+                            class="result-card__status"
+                        >
+                            Presença registrada
+                        </p>
+
+                        <h2
+                            id="tituloResultado"
+                            class="result-card__student"
+                        >
+                            Nome do aluno
+                        </h2>
+
+                        <p
+                            id="resultadoDetalhes"
+                            class="result-card__details"
+                        >
+                            Faixa e grau
+                        </p>
+
+                        <p
+                            id="resultadoHorario"
+                            class="result-card__time"
+                        >
+                            Horário do registro
+                        </p>
+                    </div>
+                </section>
+            </section>
+
+            <section
+                id="areaAdministrativa"
+                class="app-context app-context--administrative"
+                aria-labelledby="tituloContextoAdministrativo"
+                hidden
+            >
+                <header class="app-context__header">
+                    <p class="app-context__eyebrow">
+                        Administração
+                    </p>
+
+                    <h2
+                        id="tituloContextoAdministrativo"
+                        class="app-context__title"
+                    >
+                        Painel Administrativo
                     </h2>
 
-                    <p
-                        id="resultadoDetalhes"
-                        class="result-card__details"
-                    >
-                        Faixa e grau
+                    <p class="app-context__description">
+                        Gerencie os recursos administrativos do ADCS Presença.
                     </p>
+                </header>
 
-                    <p
-                        id="resultadoHorario"
-                        class="result-card__time"
+                <nav
+                    id="navegacaoAdministrativa"
+                    class="admin-navigation"
+                    aria-label="Módulos administrativos"
+                >
+                    <button
+                        id="btnAdminUsuarios"
+                        class="admin-navigation__button admin-navigation__button--active"
+                        type="button"
+                        aria-controls="painelAdminUsuarios"
+                        aria-pressed="true"
                     >
-                        Horário do registro
-                    </p>
+                        Usuários
+                    </button>
+
+                    <button
+                        id="btnAdminAlunos"
+                        class="admin-navigation__button"
+                        type="button"
+                        aria-controls="painelAdminAlunos"
+                        aria-pressed="false"
+                    >
+                        Alunos
+                    </button>
+
+                    <button
+                        id="btnAdminProfessores"
+                        class="admin-navigation__button"
+                        type="button"
+                        aria-controls="painelAdminProfessores"
+                        aria-pressed="false"
+                    >
+                        Professores
+                    </button>
+                </nav>
+
+                <div
+                    id="conteudoAdministrativo"
+                    class="admin-content"
+                >
+                    <section
+						id="painelAdminUsuarios"
+						class="admin-module-placeholder"
+						aria-labelledby="tituloAdminUsuarios"
+					>
+						<p class="admin-module-placeholder__eyebrow">
+							Módulo administrativo
+						</p>
+
+						<h3
+							id="tituloAdminUsuarios"
+							class="admin-module-placeholder__title"
+						>
+							Gestão de Usuários
+						</h3>
+
+						<p class="admin-module-placeholder__description">
+							Consulte e administre o estado operacional e os perfis
+							dos usuários autorizados no ADCS Presença.
+						</p>
+
+						<div
+							id="estadoAdminUsuarios"
+							class="feedback"
+							role="status"
+							aria-live="polite"
+							aria-atomic="true"
+							hidden
+						></div>
+
+						<div
+							id="loadingAdminUsuarios"
+							class="loading"
+							role="status"
+							aria-live="polite"
+							hidden
+						>
+							<span
+								class="loading__spinner"
+								aria-hidden="true"
+							></span>
+
+							<span>
+								Carregando usuários...
+							</span>
+						</div>
+
+						<div
+							id="listaAdminUsuarios"
+							class="admin-users-list"
+							aria-label="Usuários cadastrados"
+							hidden
+						></div>
+
+						<section
+							id="editorAdminUsuarios"
+							class="admin-users-editor"
+							aria-label="Edição de usuário"
+							hidden
+						></section>
+					</section>
+
+					<section
+						id="painelAdminAlunos"
+						class="admin-module-placeholder"
+						aria-labelledby="tituloAdminAlunos"
+						hidden
+					>
+						<p class="admin-module-placeholder__eyebrow">
+							Módulo administrativo
+						</p>
+
+						<h3
+							id="tituloAdminAlunos"
+							class="admin-module-placeholder__title"
+						>
+							Gestão de Alunos
+						</h3>
+
+						<p class="admin-module-placeholder__description">
+							Consulte e administre os alunos cadastrados
+							no ADCS Presença.
+						</p>
+
+						<div
+							id="estadoAdminAlunos"
+							class="feedback"
+							role="status"
+							aria-live="polite"
+							aria-atomic="true"
+							hidden
+						></div>
+
+						<div
+							id="loadingAdminAlunos"
+							class="loading"
+							role="status"
+							aria-live="polite"
+							hidden
+						>
+							<span
+								class="loading__spinner"
+								aria-hidden="true"
+							></span>
+
+							<span>
+								Carregando alunos...
+							</span>
+						</div>
+
+						<div
+							id="listaAdminAlunos"
+							class="admin-students-list"
+							aria-label="Alunos cadastrados"
+							hidden
+						></div>
+
+						<section
+							id="editorAdminAlunos"
+							class="admin-students-editor"
+							aria-label="Cadastro e edição de aluno"
+							hidden
+						></section>
+					</section>
+
+                    <section
+                        id="painelAdminProfessores"
+                        class="admin-module-placeholder"
+                        aria-labelledby="tituloAdminProfessores"
+                        hidden
+                    >
+                        <p class="admin-module-placeholder__eyebrow">
+                            Módulo administrativo
+                        </p>
+
+                        <h3
+                            id="tituloAdminProfessores"
+                            class="admin-module-placeholder__title"
+                        >
+                            Gestão de Professores
+                        </h3>
+
+                        <p class="admin-module-placeholder__description">
+                            Consulte e administre os professores cadastrados
+                            no ADCS Presença.
+                        </p>
+
+                        <div
+                            id="estadoAdminProfessores"
+                            class="feedback"
+                            role="status"
+                            aria-live="polite"
+                            aria-atomic="true"
+                            hidden
+                        ></div>
+
+                        <div
+                            id="loadingAdminProfessores"
+                            class="loading"
+                            role="status"
+                            aria-live="polite"
+                            hidden
+                        >
+                            <span
+                                class="loading__spinner"
+                                aria-hidden="true"
+                            ></span>
+
+                            <span>
+                                Carregando professores...
+                            </span>
+                        </div>
+
+                        <div
+                            id="listaAdminProfessores"
+                            class="admin-students-list"
+                            aria-label="Professores cadastrados"
+                            hidden
+                        ></div>
+
+                        <section
+                            id="editorAdminProfessores"
+                            class="admin-students-editor"
+                            aria-label="Cadastro e edição de professor"
+                            hidden
+                        ></section>
+                    </section>
+
                 </div>
             </section>
         </main>

@@ -4,7 +4,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /*
-     * Funções auxiliares de autenticação e autorização.
+     * ============================================================
+     * Autenticação e autorização
+     * ============================================================
      */
 
     function estaAutenticado() {
@@ -35,6 +37,10 @@ service cloud.firestore {
         && perfil in usuarioAtual().perfis;
     }
 
+    function ehAdmin() {
+      return possuiPerfil("ADMIN");
+    }
+
     function possuiAcessoOperacional() {
       return possuiPerfil("ADMIN")
         || possuiPerfil("OPERADOR");
@@ -42,100 +48,1740 @@ service cloud.firestore {
 
 
     /*
-     * Usuários
-     *
-     * O usuário autenticado pode consultar somente o próprio
-     * documento. A leitura não depende de ativo/perfis porque
-     * esses campos precisam ser carregados para resolver a sessão.
+     * ============================================================
+     * Validação de perfis
+     * ============================================================
      */
 
-    match /usuarios/{usuarioId} {
-      allow get: if request.auth != null
-                 && request.auth.uid == usuarioId;
+    function perfisReconhecidosSemDuplicidade(perfis) {
+      return perfis is list
+        && perfis.size() <= 2
+        && perfis.toSet().size() == perfis.size()
+        && perfis.toSet().hasOnly([
+          "ADMIN",
+          "OPERADOR"
+        ]);
+    }
 
-      allow list, create, update, delete: if false;
+    function perfisValidosParaEstado(ativo, perfis) {
+      return perfisReconhecidosSemDuplicidade(perfis)
+        && (
+          ativo == false
+          || perfis.size() >= 1
+        );
     }
 
 
     /*
-     * Professores
+     * ============================================================
+     * Validações de usuarios/{uid}
+     * ============================================================
+     */
+
+    function estadoAdministrativoUsuarioValido(data) {
+      return data.ativo is bool
+        && perfisValidosParaEstado(
+          data.ativo,
+          data.perfis
+        )
+        && data.atualizadoEm is timestamp
+        && data.atualizadoPor is string
+        && data.ultimaOperacaoId is string
+        && data.ultimaOperacaoId.size() > 0;
+    }
+
+    function camposAlteradosUsuarioPermitidos(before, after) {
+      return after
+        .diff(before)
+        .affectedKeys()
+        .hasOnly([
+          "ativo",
+          "perfis",
+          "atualizadoEm",
+          "atualizadoPor",
+          "ultimaOperacaoId"
+        ]);
+    }
+
+    function metadadosForamAtualizados(before, after) {
+	  return after
+		.diff(before)
+		.affectedKeys()
+		.hasAll([
+		  "atualizadoEm",
+		  "ultimaOperacaoId"
+		]);
+	}
+
+    function houveAlteracaoAdministrativaReal(before, after) {
+      return before.ativo != after.ativo
+        || before.perfis != after.perfis;
+    }
+
+    function metadadosAdministrativosValidos(after) {
+      return after.atualizadoEm == request.time
+        && after.atualizadoPor == request.auth.uid
+        && after.ultimaOperacaoId is string
+        && after.ultimaOperacaoId.size() > 0;
+    }
+
+    /*
+     * S4-DEC-003
      *
-     * Leitura disponível somente para usuário provisionado,
-     * ativo e com perfil operacional autorizado.
+     * Se o ADMIN alterar o próprio documento, o estado posterior
+     * deverá continuar:
      *
-     * Escritas administrativas permanecem bloqueadas na Sprint 3.
+     * ativo == true
+     * +
+     * perfil ADMIN presente
+     */
+    function autoprotecaoAdminValida(usuarioId, after) {
+      return usuarioId != request.auth.uid
+        || (
+          after.ativo == true
+          && "ADMIN" in after.perfis
+        );
+    }
+
+    function alteracaoAdministrativaUsuarioBaseValida(
+      usuarioId,
+      before,
+      after
+    ) {
+      return ehAdmin()
+        && estadoAdministrativoUsuarioValido(after)
+        && camposAlteradosUsuarioPermitidos(
+          before,
+          after
+        )
+        && metadadosForamAtualizados(
+          before,
+          after
+        )
+        && houveAlteracaoAdministrativaReal(
+          before,
+          after
+        )
+        && metadadosAdministrativosValidos(after)
+        && autoprotecaoAdminValida(
+          usuarioId,
+          after
+        );
+    }
+
+	/*
+     * ============================================================
+     * Validações de alunos/{alunoId}
+     * ============================================================
+     */
+
+    function estadoAlunoValido(data) {
+      return data.keys().hasAll([
+          "nome",
+          "faixa",
+          "matricula",
+          "ativo",
+          "atualizadoEm",
+          "atualizadoPor",
+          "ultimaOperacaoId"
+        ])
+        && data.keys().hasOnly([
+          "nome",
+          "faixa",
+          "matricula",
+          "ativo",
+          "atualizadoEm",
+          "atualizadoPor",
+          "ultimaOperacaoId"
+        ])
+        && data.nome is string
+        && data.nome.size() > 0
+        && data.faixa is string
+        && data.faixa.size() > 0
+        && data.matricula is string
+        && data.matricula.matches('^[0-9]{6}$')
+        && data.matricula != "000000"
+        && data.ativo is bool
+        && data.atualizadoEm is timestamp
+        && data.atualizadoPor is string
+        && data.atualizadoPor.size() > 0
+        && data.ultimaOperacaoId is string
+        && data.ultimaOperacaoId.size() > 0;
+    }
+
+    function camposAdministraveisAlunoAlterados(before, after) {
+      return before.nome != after.nome
+        || before.faixa != after.faixa
+        || before.ativo != after.ativo;
+    }
+
+    function matriculaAlunoPermaneceImutavel(before, after) {
+      return before.matricula == after.matricula;
+    }
+
+    function camposAlteradosAlunoPermitidos(before, after) {
+      return after
+        .diff(before)
+        .affectedKeys()
+        .hasOnly([
+          "nome",
+          "faixa",
+          "ativo",
+          "atualizadoEm",
+          "atualizadoPor",
+          "ultimaOperacaoId"
+        ]);
+    }
+
+    function metadadosAlunoValidos(after) {
+      return after.atualizadoEm == request.time
+        && after.atualizadoPor == request.auth.uid
+        && after.ultimaOperacaoId is string
+        && after.ultimaOperacaoId.size() > 0;
+    }
+
+    function metadadosAlunoForamAtualizados(before, after) {
+      return after
+        .diff(before)
+        .affectedKeys()
+        .hasAll([
+          "atualizadoEm",
+          "ultimaOperacaoId"
+        ]);
+    }
+
+    function alteracaoAdministrativaAlunoBaseValida(
+      before,
+      after
+    ) {
+      return estadoAlunoValido(after)
+        && camposAlteradosAlunoPermitidos(
+          before,
+          after
+        )
+        && matriculaAlunoPermaneceImutavel(
+          before,
+          after
+        )
+        && camposAdministraveisAlunoAlterados(
+          before,
+          after
+        )
+        && metadadosAlunoForamAtualizados(
+          before,
+          after
+        )
+        && metadadosAlunoValidos(after);
+    }
+
+	function criacaoAdministrativaAlunoBaseValida(after) {
+	  return ehAdmin()
+		&& estadoAlunoValido(after)
+		&& after.ativo == true
+		&& metadadosAlunoValidos(after);
+	}
+
+	/*
+	* ============================================================
+	* Validações de professores/{professorId}
+	* ============================================================
+	*
+	* S4-005
+	*
+	* O professor pode existir em dois estados físicos:
+	*
+	* 1. legado:
+	*    { nome, ativo }
+	*
+	* 2. contrato administrativo S4-005:
+	*    { nome, ativo, atualizadoEm, atualizadoPor, ultimaOperacaoId }
+	*
+	* Não haverá backfill obrigatório.
+	*/
+
+	function estadoProfessorLegadoValido(data) {
+	return data.keys().hasAll([
+			"nome",
+			"ativo"
+		  ])
+		  && data.keys().hasOnly([
+			"nome",
+			"ativo"
+		  ])
+		  && data.nome is string
+		  && data.nome.size() > 0
+		  && data.ativo is bool;
+	}
+
+	function estadoProfessorAdministrativoValido(data) {
+	return data.keys().hasAll([
+			"nome",
+			"ativo",
+			"atualizadoEm",
+			"atualizadoPor",
+			"ultimaOperacaoId"
+		  ])
+		  && data.keys().hasOnly([
+			"nome",
+			"ativo",
+			"atualizadoEm",
+			"atualizadoPor",
+			"ultimaOperacaoId"
+		  ])
+		  && data.nome is string
+		  && data.nome.size() > 0
+		  && data.ativo is bool
+		  && data.atualizadoEm is timestamp
+		  && data.atualizadoPor is string
+		  && data.atualizadoPor.size() > 0
+		  && data.ultimaOperacaoId is string
+		  && data.ultimaOperacaoId.size() > 0;
+	}
+
+	function estadoProfessorAntesValido(data) {
+	return estadoProfessorLegadoValido(data)
+		  || estadoProfessorAdministrativoValido(data);
+	}
+
+	function camposAdministraveisProfessorAlterados(before, after) {
+	return before.nome != after.nome
+		  || before.ativo != after.ativo;
+	}
+
+	function camposAlteradosProfessorPermitidos(before, after) {
+	return after.diff(before).affectedKeys().hasOnly([
+			"nome",
+			"ativo",
+			"atualizadoEm",
+			"atualizadoPor",
+			"ultimaOperacaoId"
+		  ]);
+	}
+
+	function metadadosProfessorValidos(after) {
+	return after.atualizadoEm == request.time
+		  && after.atualizadoPor == request.auth.uid
+		  && after.ultimaOperacaoId is string
+		  && after.ultimaOperacaoId.size() > 0;
+	}
+
+	function metadadosProfessorForamAtualizados(before, after) {
+	return after.diff(before).affectedKeys().hasAll([
+			"atualizadoEm",
+			"ultimaOperacaoId"
+		  ]);
+	}
+
+	function alteracaoAdministrativaProfessorBaseValida(before, after) {
+	return ehAdmin()
+		  && estadoProfessorAntesValido(before)
+		  && estadoProfessorAdministrativoValido(after)
+		  && camposAlteradosProfessorPermitidos(before, after)
+		  && camposAdministraveisProfessorAlterados(before, after)
+		  && metadadosProfessorValidos(after)
+		  && metadadosProfessorForamAtualizados(before, after);
+	}
+
+	function criacaoAdministrativaProfessorBaseValida(after) {
+	return ehAdmin()
+		  && estadoProfessorAdministrativoValido(after)
+		  && after.ativo == true
+		  && metadadosProfessorValidos(after);
+	}
+
+	/*
+	 * ============================================================
+	 * Validações de contadores/matriculasAlunos
+	 * ============================================================
+	 *
+	 * S4-DEC-005
+	 *
+	 * O contador pode existir em dois estados físicos:
+	 *
+	 * 1. legado da Sprint 4:
+	 *    sem ultimoAlunoId;
+	 *
+	 * 2. contrato S4-004:
+	 *    com ultimoAlunoId.
+	 *
+	 * Não haverá backfill obrigatório.
+	 */
+
+	function contadorMatriculasAlunosPossuiCamposBase(data) {
+	  return data.keys().hasAll([
+		  "ultimoNumeroEmitido",
+		  "atualizadoEm",
+		  "atualizadoPor",
+		  "ultimaOperacaoId",
+		  "versaoSchema"
+		])
+		&& data.keys().hasOnly([
+		  "ultimoNumeroEmitido",
+		  "atualizadoEm",
+		  "atualizadoPor",
+		  "ultimaOperacaoId",
+		  "ultimoAlunoId",
+		  "versaoSchema"
+		]);
+	}
+
+	function contadorMatriculasAlunosPossuiTiposBaseValidos(data) {
+	  return data.ultimoNumeroEmitido is int
+		&& data.ultimoNumeroEmitido >= 0
+		&& data.ultimoNumeroEmitido <= 999999
+		&& data.atualizadoEm is timestamp
+		&& data.atualizadoPor is string
+		&& data.ultimaOperacaoId is string
+		&& data.versaoSchema is int
+		&& data.versaoSchema == 1;
+	}
+
+	function contadorMatriculasAlunosPossuiUltimoAlunoIdValido(data) {
+	  return !("ultimoAlunoId" in data)
+		|| (
+		  data.ultimoAlunoId is string
+		  && data.ultimoAlunoId.size() > 0
+		);
+	}
+
+	function estadoContadorMatriculasAlunosValido(data) {
+	  return contadorMatriculasAlunosPossuiCamposBase(data)
+		&& contadorMatriculasAlunosPossuiTiposBaseValidos(data)
+		&& contadorMatriculasAlunosPossuiUltimoAlunoIdValido(data);
+	}
+
+	function contadorMatriculasAlunosFoiAtualizado() {
+	  let caminho = caminhoContadorMatriculasAlunos();
+
+	  return exists(caminho)
+		&& existsAfter(caminho)
+		&& getAfter(caminho).data.diff(
+			 get(caminho).data
+		   ).affectedKeys().size() > 0;
+	}
+
+	function contadorMatriculasAlunosAtualizadoValido(before, after) {
+	  return estadoContadorMatriculasAlunosValido(before)
+		&& estadoContadorMatriculasAlunosValido(after)
+		&& after.ultimoNumeroEmitido
+		  == before.ultimoNumeroEmitido + 1
+		&& after.ultimoNumeroEmitido <= 999999
+		&& "ultimoAlunoId" in after
+		&& after.ultimoAlunoId is string
+		&& after.ultimoAlunoId.size() > 0
+		&& after.atualizadoEm == request.time
+		&& after.atualizadoPor == request.auth.uid
+		&& after.ultimaOperacaoId is string
+		&& after.ultimaOperacaoId.size() > 0
+		&& after.versaoSchema == before.versaoSchema;
+	}
+
+	function alunoReferenciadoPeloContadorCriadoDepois(after) {
+	  let caminho =
+		/databases/$(database)/documents/alunos/$(after.ultimoAlunoId);
+
+	  let aluno = getAfter(caminho).data;
+
+	  return !exists(caminho)
+		&& existsAfter(caminho)
+		&& aluno.ultimaOperacaoId == after.ultimaOperacaoId
+		&& aluno.atualizadoPor == request.auth.uid
+		&& aluno.atualizadoEm == request.time
+		&& aluno.matricula.matches('^[0-9]{6}$')
+		&& aluno.matricula != "000000"
+		&& int(aluno.matricula) == after.ultimoNumeroEmitido;
+	}
+
+	function atualizacaoContadorParaCriacaoAlunoValida(before, after) {
+	  return ehAdmin()
+		&& contadorMatriculasAlunosAtualizadoValido(
+		  before,
+		  after
+		)
+		&& alunoReferenciadoPeloContadorCriadoDepois(after);
+	}
+
+    /*
+     * ============================================================
+     * Caminhos determinísticos
+     * ============================================================
+     */
+
+    function eventoIdUsuario(operacaoId, usuarioId) {
+      return operacaoId
+        + "__USUARIO__"
+        + usuarioId;
+    }
+
+    function caminhoAuditoriaUsuario(
+      operacaoId,
+      usuarioId
+    ) {
+      let eventoId = eventoIdUsuario(
+        operacaoId,
+        usuarioId
+      );
+
+      return /databases/$(database)/documents/auditoriaAdministrativa/$(eventoId);
+    }
+
+    function caminhoUsuario(usuarioId) {
+      return /databases/$(database)/documents/usuarios/$(usuarioId);
+    }
+
+	function caminhoContadorMatriculasAlunos() {
+	  return /databases/$(database)/documents/contadores/matriculasAlunos;
+	}
+
+    function eventoIdAluno(operacaoId, alunoId) {
+      return operacaoId
+        + "__ALUNO__"
+        + alunoId;
+    }
+
+    function caminhoAuditoriaAluno(
+      operacaoId,
+      alunoId
+    ) {
+      let eventoId = eventoIdAluno(
+        operacaoId,
+        alunoId
+      );
+
+      return /databases/$(database)/documents/auditoriaAdministrativa/$(eventoId);
+    }
+
+    function caminhoAluno(alunoId) {
+      return /databases/$(database)/documents/alunos/$(alunoId);
+    }
+
+    function eventoIdProfessor(operacaoId, professorId) {
+      return operacaoId
+        + "__PROFESSOR__"
+        + professorId;
+    }
+
+    function caminhoAuditoriaProfessor(
+      operacaoId,
+      professorId
+    ) {
+      let eventoId = eventoIdProfessor(
+        operacaoId,
+        professorId
+      );
+
+      return /databases/$(database)/documents/auditoriaAdministrativa/$(eventoId);
+    }
+
+    function caminhoProfessor(professorId) {
+      return /databases/$(database)/documents/professores/$(professorId);
+    }
+
+    function professorAtivoExiste(professorId) {
+      let caminho = caminhoProfessor(professorId);
+
+      return exists(caminho)
+        && get(caminho).data.ativo == true;
+    }
+
+    /*
+     * ============================================================
+     * Contrato da auditoria administrativa
+     * ============================================================
+     */
+
+    function auditoriaPossuiCamposObrigatorios(data) {
+      return data.keys().hasAll([
+          "operacaoId",
+          "entidade",
+          "entidadeId",
+          "acao",
+          "autorUid",
+          "ocorridoEm",
+          "before",
+          "after",
+          "camposAlterados",
+          "contexto",
+          "versaoSchema"
+        ])
+        && data.keys().hasOnly([
+          "operacaoId",
+          "entidade",
+          "entidadeId",
+          "acao",
+          "autorUid",
+          "ocorridoEm",
+          "before",
+          "after",
+          "camposAlterados",
+          "contexto",
+          "versaoSchema"
+        ]);
+    }
+
+    function auditoriaPossuiTiposValidos(data) {
+      return data.operacaoId is string
+        && data.operacaoId.size() > 0
+        && data.entidade is string
+        && data.entidadeId is string
+        && data.entidadeId.size() > 0
+        && data.acao is string
+        && data.autorUid is string
+        && data.ocorridoEm is timestamp
+        && (
+          data.before == null
+          || data.before is map
+        )
+        && (
+          data.after == null
+          || data.after is map
+        )
+        && data.camposAlterados is list
+        && (
+          data.contexto == null
+          || data.contexto is map
+        )
+        && data.versaoSchema is int;
+    }
+
+    function auditoriaUsuarioPossuiValoresControlados(data) {
+      return data.entidade == "USUARIO"
+        && data.autorUid == request.auth.uid
+        && data.ocorridoEm == request.time
+        && data.versaoSchema == 1
+        && (
+          data.acao == "USUARIO_ATUALIZADO"
+          || data.acao == "USUARIO_ATIVADO"
+          || data.acao == "USUARIO_DESATIVADO"
+        );
+    }
+
+    function eventoIdUsuarioValido(eventoId, data) {
+      return eventoId
+        == eventoIdUsuario(
+          data.operacaoId,
+          data.entidadeId
+        );
+    }
+
+	function auditoriaAlunoPossuiValoresControlados(data) {
+	  return data.entidade == "ALUNO"
+		&& data.autorUid == request.auth.uid
+		&& data.ocorridoEm == request.time
+		&& data.versaoSchema == 1
+		&& (
+		  data.acao == "ALUNO_CRIADO"
+		  || data.acao == "ALUNO_ATUALIZADO"
+		  || data.acao == "ALUNO_ATIVADO"
+		  || data.acao == "ALUNO_DESATIVADO"
+		);
+	}
+
+    function eventoIdAlunoValido(eventoId, data) {
+      return eventoId
+        == eventoIdAluno(
+          data.operacaoId,
+          data.entidadeId
+        );
+    }
+
+    function auditoriaProfessorPossuiValoresControlados(data) {
+      return data.entidade == "PROFESSOR"
+        && data.autorUid == request.auth.uid
+        && data.ocorridoEm == request.time
+        && data.versaoSchema == 1
+        && (
+          data.acao == "PROFESSOR_CRIADO"
+          || data.acao == "PROFESSOR_ATUALIZADO"
+          || data.acao == "PROFESSOR_ATIVADO"
+          || data.acao == "PROFESSOR_DESATIVADO"
+        );
+    }
+
+    function eventoIdProfessorValido(eventoId, data) {
+      return eventoId
+        == eventoIdProfessor(
+          data.operacaoId,
+          data.entidadeId
+        );
+    }
+
+    /*
+     * ============================================================
+     * Coerência before / after / camposAlterados
+     * ============================================================
+     */
+
+    function somenteAtivoAlterado(before, after) {
+      return before.ativo != after.ativo
+        && before.perfis == after.perfis;
+    }
+
+    function somentePerfisAlterados(before, after) {
+      return before.ativo == after.ativo
+        && before.perfis != after.perfis;
+    }
+
+    function ativoEPerfisAlterados(before, after) {
+      return before.ativo != after.ativo
+        && before.perfis != after.perfis;
+    }
+
+    function auditoriaSomenteAtivoValida(
+      evento,
+      before,
+      after
+    ) {
+      return evento.camposAlterados.size() == 1
+        && evento.camposAlterados[0] == "ativo"
+        && evento.before is map
+        && evento.after is map
+        && evento.before.keys().hasOnly([
+          "ativo"
+        ])
+        && evento.before.keys().hasAll([
+          "ativo"
+        ])
+        && evento.after.keys().hasOnly([
+          "ativo"
+        ])
+        && evento.after.keys().hasAll([
+          "ativo"
+        ])
+        && evento.before.ativo == before.ativo
+        && evento.after.ativo == after.ativo
+        && (
+          (
+            before.ativo == false
+            && after.ativo == true
+            && evento.acao == "USUARIO_ATIVADO"
+          )
+          ||
+          (
+            before.ativo == true
+            && after.ativo == false
+            && evento.acao == "USUARIO_DESATIVADO"
+          )
+        );
+    }
+
+    function auditoriaSomentePerfisValida(
+      evento,
+      before,
+      after
+    ) {
+      return evento.camposAlterados.size() == 1
+        && evento.camposAlterados[0] == "perfis"
+        && evento.before is map
+        && evento.after is map
+        && evento.before.keys().hasOnly([
+          "perfis"
+        ])
+        && evento.before.keys().hasAll([
+          "perfis"
+        ])
+        && evento.after.keys().hasOnly([
+          "perfis"
+        ])
+        && evento.after.keys().hasAll([
+          "perfis"
+        ])
+        && evento.before.perfis == before.perfis
+        && evento.after.perfis == after.perfis
+        && evento.acao == "USUARIO_ATUALIZADO";
+    }
+
+    function auditoriaAtivoEPerfisValida(
+      evento,
+      before,
+      after
+    ) {
+      return evento.camposAlterados.size() == 2
+        && evento.camposAlterados.toSet().hasOnly([
+          "ativo",
+          "perfis"
+        ])
+        && evento.camposAlterados.toSet().hasAll([
+          "ativo",
+          "perfis"
+        ])
+        && evento.before is map
+        && evento.after is map
+        && evento.before.keys().hasOnly([
+          "ativo",
+          "perfis"
+        ])
+        && evento.before.keys().hasAll([
+          "ativo",
+          "perfis"
+        ])
+        && evento.after.keys().hasOnly([
+          "ativo",
+          "perfis"
+        ])
+        && evento.after.keys().hasAll([
+          "ativo",
+          "perfis"
+        ])
+        && evento.before.ativo == before.ativo
+        && evento.before.perfis == before.perfis
+        && evento.after.ativo == after.ativo
+        && evento.after.perfis == after.perfis
+        && evento.acao == "USUARIO_ATUALIZADO";
+    }
+
+    function auditoriaCoerenteComAlteracao(
+      evento,
+      before,
+      after
+    ) {
+      return (
+          somenteAtivoAlterado(
+            before,
+            after
+          )
+          && auditoriaSomenteAtivoValida(
+            evento,
+            before,
+            after
+          )
+        )
+        ||
+        (
+          somentePerfisAlterados(
+            before,
+            after
+          )
+          && auditoriaSomentePerfisValida(
+            evento,
+            before,
+            after
+          )
+        )
+        ||
+        (
+          ativoEPerfisAlterados(
+            before,
+            after
+          )
+          && auditoriaAtivoEPerfisValida(
+            evento,
+            before,
+            after
+          )
+        );
+    }
+
+    /*
+     * ============================================================
+     * Coerência da auditoria de ALUNO
+     * ============================================================
+     */
+
+    function auditoriaAlunoCamposAlteradosValidos(
+      evento,
+      before,
+      after
+    ) {
+      return evento.camposAlterados.size() >= 1
+        && evento.camposAlterados.size() <= 3
+        && evento.camposAlterados.toSet().size()
+          == evento.camposAlterados.size()
+        && evento.camposAlterados.toSet().hasOnly([
+          "nome",
+          "faixa",
+          "ativo"
+        ])
+        && evento.before is map
+        && evento.after is map
+
+        && evento.before.keys().hasAll(
+          evento.camposAlterados
+        )
+        && evento.before.keys().hasOnly(
+          evento.camposAlterados
+        )
+
+        && evento.after.keys().hasAll(
+          evento.camposAlterados
+        )
+        && evento.after.keys().hasOnly(
+          evento.camposAlterados
+        )
+
+        && (
+          (before.nome != after.nome)
+          == ("nome" in evento.camposAlterados)
+        )
+        && (
+          (before.faixa != after.faixa)
+          == ("faixa" in evento.camposAlterados)
+        )
+        && (
+          (before.ativo != after.ativo)
+          == ("ativo" in evento.camposAlterados)
+        )
+
+        && (
+          !("nome" in evento.camposAlterados)
+          || (
+            evento.before.nome == before.nome
+            && evento.after.nome == after.nome
+          )
+        )
+        && (
+          !("faixa" in evento.camposAlterados)
+          || (
+            evento.before.faixa == before.faixa
+            && evento.after.faixa == after.faixa
+          )
+        )
+        && (
+          !("ativo" in evento.camposAlterados)
+          || (
+            evento.before.ativo == before.ativo
+            && evento.after.ativo == after.ativo
+          )
+        );
+    }
+
+    function auditoriaAlunoAcaoValida(
+      evento,
+      before,
+      after
+    ) {
+      return (
+          before.nome == after.nome
+          && before.faixa == after.faixa
+          && before.ativo == false
+          && after.ativo == true
+          && evento.acao == "ALUNO_ATIVADO"
+        )
+        ||
+        (
+          before.nome == after.nome
+          && before.faixa == after.faixa
+          && before.ativo == true
+          && after.ativo == false
+          && evento.acao == "ALUNO_DESATIVADO"
+        )
+        ||
+        (
+          (
+            before.nome != after.nome
+            || before.faixa != after.faixa
+          )
+          && evento.acao == "ALUNO_ATUALIZADO"
+        );
+    }
+
+    function auditoriaCoerenteComAlteracaoAluno(
+      evento,
+      before,
+      after
+    ) {
+      return auditoriaAlunoCamposAlteradosValidos(
+          evento,
+          before,
+          after
+        )
+        && auditoriaAlunoAcaoValida(
+          evento,
+          before,
+          after
+        );
+    }
+
+    /*
+     * ============================================================
+     * Coerência da auditoria de PROFESSOR
+     * ============================================================
+     */
+
+    function auditoriaProfessorCamposAlteradosValidos(
+      evento,
+      before,
+      after
+    ) {
+      return evento.camposAlterados.size() >= 1
+        && evento.camposAlterados.size() <= 2
+        && evento.camposAlterados.toSet().size()
+          == evento.camposAlterados.size()
+        && evento.camposAlterados.toSet().hasOnly([
+          "nome",
+          "ativo"
+        ])
+        && evento.before is map
+        && evento.after is map
+
+        && evento.before.keys().hasAll(
+          evento.camposAlterados
+        )
+        && evento.before.keys().hasOnly(
+          evento.camposAlterados
+        )
+
+        && evento.after.keys().hasAll(
+          evento.camposAlterados
+        )
+        && evento.after.keys().hasOnly(
+          evento.camposAlterados
+        )
+
+        && (
+          (before.nome != after.nome)
+          == ("nome" in evento.camposAlterados)
+        )
+        && (
+          (before.ativo != after.ativo)
+          == ("ativo" in evento.camposAlterados)
+        )
+
+        && (
+          !("nome" in evento.camposAlterados)
+          || (
+            evento.before.nome == before.nome
+            && evento.after.nome == after.nome
+          )
+        )
+        && (
+          !("ativo" in evento.camposAlterados)
+          || (
+            evento.before.ativo == before.ativo
+            && evento.after.ativo == after.ativo
+          )
+        );
+    }
+
+    function auditoriaProfessorAcaoValida(
+      evento,
+      before,
+      after
+    ) {
+      return (
+          before.nome == after.nome
+          && before.ativo == false
+          && after.ativo == true
+          && evento.acao == "PROFESSOR_ATIVADO"
+        )
+        ||
+        (
+          before.nome == after.nome
+          && before.ativo == true
+          && after.ativo == false
+          && evento.acao == "PROFESSOR_DESATIVADO"
+        )
+        ||
+        (
+          before.nome != after.nome
+          && evento.acao == "PROFESSOR_ATUALIZADO"
+        );
+    }
+
+    function auditoriaCoerenteComAlteracaoProfessor(
+      evento,
+      before,
+      after
+    ) {
+      return auditoriaProfessorCamposAlteradosValidos(
+          evento,
+          before,
+          after
+        )
+        && auditoriaProfessorAcaoValida(
+          evento,
+          before,
+          after
+        );
+    }
+
+    /*
+     * ============================================================
+     * Validação cruzada:
+     * usuario UPDATE → auditoria CREATE
+     * ============================================================
+     */
+
+    function auditoriaCorrespondenteExisteDepois(
+      usuarioId,
+      before,
+      after
+    ) {
+      let caminho = caminhoAuditoriaUsuario(
+        after.ultimaOperacaoId,
+        usuarioId
+      );
+
+      return !exists(caminho)
+        && existsAfter(caminho)
+        && auditoriaPossuiCamposObrigatorios(
+          getAfter(caminho).data
+        )
+        && auditoriaPossuiTiposValidos(
+          getAfter(caminho).data
+        )
+        && auditoriaUsuarioPossuiValoresControlados(
+          getAfter(caminho).data
+        )
+        && getAfter(caminho).data.operacaoId
+          == after.ultimaOperacaoId
+        && getAfter(caminho).data.entidadeId
+          == usuarioId
+        && auditoriaCoerenteComAlteracao(
+          getAfter(caminho).data,
+          before,
+          after
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * Validação cruzada:
+     * auditoria CREATE → usuario UPDATE
+     * ============================================================
+     */
+
+    function usuarioCorrespondenteFoiAlterado(
+      evento
+    ) {
+      let caminho = caminhoUsuario(
+        evento.entidadeId
+      );
+
+      return exists(caminho)
+        && existsAfter(caminho)
+        && alteracaoAdministrativaUsuarioBaseValida(
+          evento.entidadeId,
+          get(caminho).data,
+          getAfter(caminho).data
+        )
+        && getAfter(caminho).data.ultimaOperacaoId
+          == evento.operacaoId
+        && auditoriaCoerenteComAlteracao(
+          evento,
+          get(caminho).data,
+          getAfter(caminho).data
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * Validação cruzada:
+     * aluno UPDATE → auditoria CREATE
+     * ============================================================
+     */
+
+	function auditoriaAlunoCorrespondenteValida(
+	  caminho,
+	  alunoId,
+	  before,
+	  after
+	) {
+	  let evento = getAfter(caminho).data;
+
+	  return auditoriaPossuiCamposObrigatorios(
+		  evento
+		)
+		&& auditoriaPossuiTiposValidos(
+		  evento
+		)
+		&& auditoriaAlunoPossuiValoresControlados(
+		  evento
+		)
+		&& evento.operacaoId
+		  == after.ultimaOperacaoId
+		&& evento.entidadeId
+		  == alunoId
+		&& auditoriaCoerenteComAlteracaoAluno(
+		  evento,
+		  before,
+		  after
+		);
+	}
+
+	function auditoriaAlunoCorrespondenteExisteDepois(
+	  alunoId,
+	  before,
+	  after
+	) {
+	  let caminho = caminhoAuditoriaAluno(
+		after.ultimaOperacaoId,
+		alunoId
+	  );
+
+	  return !exists(caminho)
+		&& existsAfter(caminho)
+		&& auditoriaAlunoCorrespondenteValida(
+		  caminho,
+		  alunoId,
+		  before,
+		  after
+		);
+	}
+
+	/*
+	* ============================================================
+	* Validação cruzada:
+	* professor UPDATE → auditoria CREATE
+	* ============================================================
+	*/
+
+	function auditoriaProfessorCorrespondenteValida(
+	caminho,
+	professorId,
+	before,
+	after
+	) {
+	let evento = getAfter(caminho).data;
+
+	return auditoriaPossuiCamposObrigatorios(
+			evento
+		  )
+		  && auditoriaPossuiTiposValidos(
+			evento
+		  )
+		  && auditoriaProfessorPossuiValoresControlados(
+			evento
+		  )
+		  && evento.operacaoId
+			== after.ultimaOperacaoId
+		  && evento.entidadeId
+			== professorId
+		  && auditoriaCoerenteComAlteracaoProfessor(
+			evento,
+			before,
+			after
+		  );
+	}
+
+	function auditoriaProfessorCorrespondenteExisteDepois(
+	professorId,
+	before,
+	after
+	) {
+	let caminho = caminhoAuditoriaProfessor(
+		  after.ultimaOperacaoId,
+		  professorId
+	);
+
+	return !exists(caminho)
+		  && existsAfter(caminho)
+		  && auditoriaProfessorCorrespondenteValida(
+			caminho,
+			professorId,
+			before,
+			after
+		  );
+	}
+
+	/*
+	* ============================================================
+	* Validação cruzada:
+	* professor CREATE → auditoria CREATE
+	* ============================================================
+	*/
+
+	function auditoriaProfessorCriadoCorrespondenteExisteDepois(
+	professorId,
+	professor
+	) {
+	let caminho =
+		  caminhoAuditoriaProfessor(
+			professor.ultimaOperacaoId,
+			professorId
+		  );
+
+	let evento = getAfter(caminho).data;
+
+	return !exists(caminho)
+		  && existsAfter(caminho)
+		  && auditoriaPossuiCamposObrigatorios(evento)
+		  && auditoriaPossuiTiposValidos(evento)
+		  && auditoriaProfessorPossuiValoresControlados(evento)
+		  && evento.acao == "PROFESSOR_CRIADO"
+		  && evento.operacaoId == professor.ultimaOperacaoId
+		  && evento.entidadeId == professorId
+		  && evento.autorUid == request.auth.uid
+		  && evento.ocorridoEm == request.time
+		  && evento.before == null
+		  && evento.after is map;
+	}
+
+	function auditoriaAlunoCriadoCorrespondenteExisteDepois(
+	  alunoId,
+	  aluno
+	) {
+	  let caminho =
+		caminhoAuditoriaAluno(
+		  aluno.ultimaOperacaoId,
+		  alunoId
+		);
+
+	  let evento = getAfter(caminho).data;
+
+	  return !exists(caminho)
+		&& existsAfter(caminho)
+		&& auditoriaPossuiCamposObrigatorios(evento)
+		&& auditoriaPossuiTiposValidos(evento)
+		&& auditoriaAlunoPossuiValoresControlados(evento)
+		&& evento.acao == "ALUNO_CRIADO"
+		&& evento.operacaoId == aluno.ultimaOperacaoId
+		&& evento.entidadeId == alunoId
+		&& evento.autorUid == request.auth.uid
+		&& evento.ocorridoEm == request.time
+		&& evento.before == null
+		&& evento.after is map;
+	}
+
+
+	/*
+	 * ============================================================
+	 * Validação cruzada:
+	 * auditoria CREATE → aluno UPDATE
+	 * ============================================================
+	 */
+
+	function auditoriaCriacaoAlunoValida(evento) {
+	 let caminho = caminhoAluno(evento.entidadeId);
+	 let aluno = getAfter(caminho).data;
+	 let contador =
+		   getAfter(caminhoContadorMatriculasAlunos()).data;
+
+	 return evento.acao == "ALUNO_CRIADO"
+		   && !exists(caminho)
+		   && existsAfter(caminho)
+		   && aluno.ultimaOperacaoId == evento.operacaoId
+		   && aluno.atualizadoPor == request.auth.uid
+		   && aluno.atualizadoEm == request.time
+		   && contador.ultimaOperacaoId == evento.operacaoId
+		   && contador.ultimoAlunoId == evento.entidadeId
+		   && evento.before == null
+
+		   && evento.after is map
+		   && evento.after.keys().hasOnly([
+			 "nome",
+			 "faixa",
+			 "matricula",
+			 "ativo"
+		   ])
+		   && evento.after.keys().hasAll([
+			 "nome",
+			 "faixa",
+			 "matricula",
+			 "ativo"
+		   ])
+		   && evento.after.nome == aluno.nome
+		   && evento.after.faixa == aluno.faixa
+		   && evento.after.matricula == aluno.matricula
+		   && evento.after.ativo == aluno.ativo
+
+		   && evento.camposAlterados.size() == 3
+		   && evento.camposAlterados.toSet().size() == 3
+		   && evento.camposAlterados.toSet().hasOnly([
+			 "nome",
+			 "faixa",
+			 "ativo"
+		   ])
+		   && evento.camposAlterados.toSet().hasAll([
+			 "nome",
+			 "faixa",
+			 "ativo"
+		   ]);
+	}
+
+	function alunoCorrespondenteAlteradoValido(
+	  caminho,
+	  evento
+	) {
+	  let before = get(caminho).data;
+	  let after = getAfter(caminho).data;
+
+	  return before.ultimaOperacaoId
+		  != after.ultimaOperacaoId
+		&& after.ultimaOperacaoId
+		  == evento.operacaoId;
+	}
+
+	function alunoCorrespondenteFoiAlterado(evento) {
+	  return evento.acao == "ALUNO_CRIADO"
+		? auditoriaCriacaoAlunoValida(evento)
+		: (
+			evento.acao == "ALUNO_ATUALIZADO"
+			|| evento.acao == "ALUNO_ATIVADO"
+			|| evento.acao == "ALUNO_DESATIVADO"
+		  )
+		  ? alunoCorrespondenteAtualizadoValido(evento)
+		  : false;
+	}
+
+	function alunoCorrespondenteAtualizadoValido(evento) {
+	  let caminho = caminhoAluno(evento.entidadeId);
+
+	  return exists(caminho)
+		&& existsAfter(caminho)
+		&& alunoCorrespondenteAlteradoValido(
+		  caminho,
+		  evento
+		);
+	}
+
+	/*
+	* ============================================================
+	* Validação cruzada:
+	* auditoria CREATE → professor CREATE/UPDATE
+	* ============================================================
+	*/
+
+	function auditoriaCriacaoProfessorValida(evento) {
+	let caminho = caminhoProfessor(evento.entidadeId);
+	let professor = getAfter(caminho).data;
+
+	return evento.acao == "PROFESSOR_CRIADO"
+			  && !exists(caminho)
+			  && existsAfter(caminho)
+			  && estadoProfessorAdministrativoValido(professor)
+			  && professor.ativo == true
+			  && professor.ultimaOperacaoId == evento.operacaoId
+			  && professor.atualizadoPor == request.auth.uid
+			  && professor.atualizadoEm == request.time
+			  && evento.before == null
+
+			  && evento.after is map
+			  && evento.after.keys().hasOnly([
+					"nome",
+					"ativo"
+			  ])
+			  && evento.after.keys().hasAll([
+					"nome",
+					"ativo"
+			  ])
+			  && evento.after.nome == professor.nome
+			  && evento.after.ativo == professor.ativo
+
+			  && evento.camposAlterados.size() == 2
+			  && evento.camposAlterados.toSet().size() == 2
+			  && evento.camposAlterados.toSet().hasOnly([
+					"nome",
+					"ativo"
+			  ])
+			  && evento.camposAlterados.toSet().hasAll([
+					"nome",
+					"ativo"
+			  ]);
+	}
+
+	function professorCorrespondenteAtualizadoValido(evento) {
+	let caminho = caminhoProfessor(evento.entidadeId);
+	let before = get(caminho).data;
+	let after = getAfter(caminho).data;
+
+	return exists(caminho)
+		  && existsAfter(caminho)
+		  && alteracaoAdministrativaProfessorBaseValida(
+			before,
+			after
+		  )
+		  && after.ultimaOperacaoId == evento.operacaoId
+		  && auditoriaCoerenteComAlteracaoProfessor(
+			evento,
+			before,
+			after
+		  );
+	}
+
+	function professorCorrespondenteFoiAlterado(evento) {
+	return evento.acao == "PROFESSOR_CRIADO"
+		  ? auditoriaCriacaoProfessorValida(evento)
+		  : (
+				  evento.acao == "PROFESSOR_ATUALIZADO"
+				  || evento.acao == "PROFESSOR_ATIVADO"
+				  || evento.acao == "PROFESSOR_DESATIVADO"
+			)
+			? professorCorrespondenteAtualizadoValido(evento)
+			: false;
+	}
+
+    /*
+     * ============================================================
+     * Usuários
+     * ============================================================
+     */
+
+    match /usuarios/{usuarioId} {
+
+      /*
+       * Leitura própria preservada da Sprint 3.
+       * ADMIN ativo pode consultar qualquer usuário.
+       */
+      allow get: if
+        (
+          request.auth != null
+          && request.auth.uid == usuarioId
+        )
+        || ehAdmin();
+
+      /*
+       * Listagem administrativa exclusiva do ADMIN ativo.
+       */
+      allow list: if ehAdmin();
+
+      /*
+       * S4-003-FB-04B
+       *
+       * UPDATE administrativo permitido apenas quando:
+       *
+       * - autor é ADMIN ativo;
+       * - somente campos previstos são alterados;
+       * - existe alteração real de ativo/perfis;
+       * - metadados administrativos são válidos;
+       * - autoproteção S4-DEC-003 é respeitada;
+       * - auditoria correspondente é criada no mesmo commit.
+       */
+		allow update: if
+		  alteracaoAdministrativaUsuarioBaseValida(
+			usuarioId,
+			resource.data,
+			request.resource.data
+		  )
+		  && auditoriaCorrespondenteExisteDepois(
+			usuarioId,
+			resource.data,
+			request.resource.data
+		  );
+
+      /*
+       * CREATE será tratado separadamente na FB-05.
+       */
+      allow create: if false;
+
+      /*
+       * Exclusão física regular permanece proibida.
+       */
+      allow delete: if false;
+    }
+
+
+    /*
+     * ============================================================
+     * Auditoria Administrativa
+     * ============================================================
+     */
+
+    match /auditoriaAdministrativa/{eventoId} {
+
+      /*
+       * S4-003-FB-04B
+       *
+       * CREATE permitido somente quando:
+       *
+       * - autor é ADMIN ativo;
+       * - contrato físico do evento é válido;
+       * - eventoId é determinístico;
+       * - valores controlados são válidos;
+       * - usuarios/{uid} correspondente é atualizado
+       *   na mesma operação atômica;
+       * - before/after/camposAlterados refletem a
+       *   alteração real executada.
+       */
+		allow create: if
+		  request.resource.data.entidade == "USUARIO"
+			? (
+				ehAdmin()
+				&& auditoriaPossuiCamposObrigatorios(
+				  request.resource.data
+				)
+				&& auditoriaPossuiTiposValidos(
+				  request.resource.data
+				)
+				&& auditoriaUsuarioPossuiValoresControlados(
+				  request.resource.data
+				)
+				&& eventoIdUsuarioValido(
+				  eventoId,
+				  request.resource.data
+				)
+				&& usuarioCorrespondenteFoiAlterado(
+				  request.resource.data
+				)
+			  )
+			: (
+				request.resource.data.entidade == "ALUNO"
+				? (
+					  ehAdmin()
+					  && eventoIdAlunoValido(
+						eventoId,
+						request.resource.data
+					  )
+					  && alunoCorrespondenteFoiAlterado(
+						request.resource.data
+					  )
+				)
+				: (
+					  request.resource.data.entidade == "PROFESSOR"
+					  ? (
+							  ehAdmin()
+							  && eventoIdProfessorValido(
+								eventoId,
+								request.resource.data
+							  )
+							  && professorCorrespondenteFoiAlterado(
+								request.resource.data
+							  )
+						)
+					  : false
+				)
+			);
+
+      /*
+       * Nesta etapa a auditoria não é exposta para leitura.
+       */
+      allow get, list: if false;
+
+		allow create, delete: if false;
+    }
+
+
+    /*
+     * ============================================================
+     * Professores — baseline Sprint 3 preservada
+     * ============================================================
      */
 
     match /professores/{professorId} {
       allow read: if possuiAcessoOperacional();
-      allow create, update, delete: if false;
+      allow create: if
+        criacaoAdministrativaProfessorBaseValida(
+          request.resource.data
+        )
+        && auditoriaProfessorCriadoCorrespondenteExisteDepois(
+          professorId,
+          request.resource.data
+        );
+
+      allow update: if
+        alteracaoAdministrativaProfessorBaseValida(
+          resource.data,
+          request.resource.data
+        )
+        && auditoriaProfessorCorrespondenteExisteDepois(
+          professorId,
+          resource.data,
+          request.resource.data
+        );
+
+      allow delete: if false;
     }
 
 
+	/*
+	 * ============================================================
+	 * Contador de matrículas de alunos — S4-DEC-005
+	 * ============================================================
+	 */
+
+	match /contadores/matriculasAlunos {
+
+	  /*
+	   * Consulta necessária ao fluxo administrativo de emissão
+	   * de matrícula.
+	   */
+	  allow get: if ehAdmin();
+
+	  /*
+	   * O contador é documento singleton e não possui listagem.
+	   */
+	  allow list: if false;
+
+		/*
+		 * FB-05
+		 *
+		 * UPDATE permitido somente quando o contador participa
+		 * da criação atômica de um novo aluno.
+		 *
+		 * CREATE e DELETE permanecem proibidos.
+		 */
+		allow update: if
+		  atualizacaoContadorParaCriacaoAlunoValida(
+			resource.data,
+			request.resource.data
+		  );
+
+		allow create, delete: if false;
+	}
+
+
     /*
-     * Alunos
-     *
-     * Leitura disponível somente para usuário provisionado,
-     * ativo e com perfil operacional autorizado.
-     *
-     * Escritas administrativas permanecem bloqueadas na Sprint 3.
+     * ============================================================
+     * Alunos — baseline Sprint 3 preservada
+     * ============================================================
      */
 
     match /alunos/{alunoId} {
       allow read: if possuiAcessoOperacional();
-      allow create, update, delete: if false;
+
+	allow update: if
+	  ehAdmin()
+	  && alteracaoAdministrativaAlunoBaseValida(
+		resource.data,
+		request.resource.data
+	  )
+	  && auditoriaAlunoCorrespondenteExisteDepois(
+		alunoId,
+		resource.data,
+		request.resource.data
+	  );
+
+	allow create: if
+	  criacaoAdministrativaAlunoBaseValida(
+		request.resource.data
+	  )
+	  && contadorMatriculasAlunosFoiAtualizado()
+	  && auditoriaAlunoCriadoCorrespondenteExisteDepois(
+		alunoId,
+		request.resource.data
+	  );
+
+	allow delete: if false;
     }
 
 
     /*
-     * Presenças
+     * ============================================================
+     * Presenças — baseline Sprint 3 preservada
+     * ============================================================
      */
 
     match /presencas/{presencaId} {
 
-      /*
-       * Leitura individual necessária para a verificação
-       * de presença existente pelo ID determinístico.
-       */
       allow get: if possuiAcessoOperacional();
 
-      /*
-       * Consultas/listagens permanecem bloqueadas
-       * nesta etapa.
-       */
       allow list: if false;
 
-      /*
-       * Criação permitida somente para usuário operacional
-       * autorizado, preservando as validações do contrato atual.
-       *
-       * Os campos de auditoria por UID não são antecipados
-       * nesta atividade.
-       */
       allow create: if
-        possuiAcessoOperacional() &&
-        request.resource.data.alunoId is string &&
-        request.resource.data.professorId is string &&
-        request.resource.data.matricula is string &&
-        request.resource.data.nomeAluno is string &&
-        request.resource.data.nomeProfessor is string &&
-        request.resource.data.faixa is string &&
-        request.resource.data.dia is string &&
-        request.resource.data.origem is string &&
-        request.resource.data.dataHora == request.time;
+        possuiAcessoOperacional()
+        && request.resource.data.alunoId is string
+        && request.resource.data.professorId is string
+        && professorAtivoExiste(
+          request.resource.data.professorId
+        )
+        && request.resource.data.matricula is string
+        && request.resource.data.nomeAluno is string
+        && request.resource.data.nomeProfessor is string
+        && request.resource.data.faixa is string
+        && request.resource.data.dia is string
+        && request.resource.data.origem is string
+        && request.resource.data.dataHora == request.time;
 
-      /*
-       * Alterações e exclusões permanecem bloqueadas.
-       */
       allow update, delete: if false;
     }
 
 
     /*
-     * Negação padrão.
-     *
-     * Qualquer operação não expressamente autorizada acima
-     * deve ser negada.
+     * ============================================================
+     * Negação padrão
+     * ============================================================
      */
 
     match /{document=**} {

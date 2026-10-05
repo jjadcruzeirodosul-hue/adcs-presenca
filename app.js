@@ -4,8 +4,8 @@
  * app.js
  * ------------------------------------------------------------
  * Bootstrap principal da aplicação.
- * Responsável por coordenar autenticação, autorização e
- * inicialização dos módulos operacionais.
+ * Responsável por coordenar autenticação, autorização,
+ * sessão, inatividade e inicialização dos módulos da aplicação.
  * Conforme DEVSTD-001.
  * ============================================================
  */
@@ -15,6 +15,10 @@
 import {
     inicializarSessao
 } from "./js/auth/session.js";
+
+import {
+    logout
+} from "./js/auth/auth-service.js";
 
 import {
     possuiAcessoOperacional,
@@ -31,7 +35,43 @@ import {
 } from "./js/auth/login-ui.js";
 
 import {
+    definirLogoutEmAndamento,
+    initSessionUI,
+    limparUsuarioSessao,
+    mostrarAvisoInatividade,
+    mostrarUsuarioSessao,
+    ocultarAvisoInatividade
+} from "./js/auth/session-ui.js";
+
+import {
+    encerrarMonitorInatividade,
+    iniciarMonitorInatividade
+} from "./js/auth/activity-monitor.js";
+
+import {
+    atualizarAcessoAdministrativo,
+    initAdminShell,
+    resetAdminShell
+} from "./js/admin/admin-shell.js";
+
+import {
+    carregarUsuariosAdministrativos,
+    initAdminUsuarios
+} from "./js/admin/usuarios/admin-usuarios.js";
+
+import {
+    carregarAlunosAdministrativos,
+    initAdminAlunos
+} from "./js/admin/alunos/admin-alunos.js";
+
+import {
+    carregarProfessoresAdministrativos,
+    initAdminProfessores
+} from "./js/admin/professores/admin-professores.js";
+
+import {
     initUI,
+    limparFeedback,
     mostrarMensagem
 } from "./js/ui.js";
 
@@ -44,11 +84,13 @@ import {
 } from "./js/manual.js";
 
 import {
-    initScanner
+    initScanner,
+    pararScanner
 } from "./js/scanner.js";
 
 let bootstrapInicializado = false;
 let modulosOperacionaisInicializados = false;
+let logoutEmAndamento = false;
 
 /**
  * Inicializa o Bootstrap protegido.
@@ -62,6 +104,42 @@ function iniciarAplicacao() {
 
     try {
         initLoginUI();
+
+        initSessionUI({
+            onLogout: () => {
+                void executarLogoutManual();
+            }
+        });
+
+        initAdminShell({
+            onAntesEntrarAdministracao: async () => {
+                await pararScanner();
+            },
+
+            onDepoisEntrarAdministracao: async () => {
+                await carregarUsuariosAdministrativos();
+            },
+
+            onDepoisEntrarOperacao: async () => {
+                await carregarProfessores();
+            },
+
+            onModuloAdministrativoSelecionado: (modulo) => {
+                if (modulo === "alunos") {
+                    void carregarAlunosAdministrativos();
+                    return;
+                }
+
+                if (modulo === "professores") {
+                    void carregarProfessoresAdministrativos();
+                }
+            }
+        });
+
+		initAdminUsuarios();
+        initAdminAlunos();
+        initAdminProfessores();
+
         mostrarPainelLogin();
 
         inicializarSessao((sessao) => {
@@ -78,7 +156,7 @@ function iniciarAplicacao() {
 
 /**
  * Processa o estado resolvido da sessão e aplica o RBAC antes
- * da inicialização dos módulos operacionais.
+ * da inicialização dos módulos da aplicação.
  *
  * @param {{
  *     usuarioAutenticado: Object | null,
@@ -122,9 +200,25 @@ async function processarEstadoSessao(sessao) {
         }
 
         limparMensagemPainelLogin();
+
+        mostrarUsuarioSessao({
+            email:
+                sessao.usuarioAutenticado.email || "",
+            perfis:
+                Array.isArray(sessao.usuarioSistema.perfis)
+                    ? sessao.usuarioSistema.perfis
+                    : []
+        });
+
+        definirLogoutEmAndamento(false);
+
+        atualizarAcessoAdministrativo();
+
         mostrarAplicacaoOperacional();
 
         await inicializarModulosOperacionais();
+
+        iniciarControleInatividade();
 
         console.info(
             "[App] Sessão autenticada e acesso operacional autorizado.",
@@ -145,6 +239,7 @@ async function processarEstadoSessao(sessao) {
  */
 async function inicializarModulosOperacionais() {
     if (modulosOperacionaisInicializados) {
+        await carregarProfessores();
         return;
     }
 
@@ -163,9 +258,135 @@ async function inicializarModulosOperacionais() {
 }
 
 /**
+ * Inicializa o monitor de inatividade da sessão.
+ */
+function iniciarControleInatividade() {
+    encerrarMonitorInatividade();
+
+    ocultarAvisoInatividade();
+
+    iniciarMonitorInatividade({
+        onAviso: ({ tempoRestanteMs }) => {
+            mostrarAvisoInatividade(
+                tempoRestanteMs
+            );
+        },
+
+        onAtividade: ({ avisoEstavaExibido }) => {
+            if (avisoEstavaExibido) {
+                ocultarAvisoInatividade();
+
+                console.info(
+                    "[Sessão] Atividade detectada após aviso. Temporizadores reiniciados."
+                );
+            }
+        },
+
+        onLogout: () => {
+            void executarLogoutInatividade();
+        }
+    });
+}
+
+/**
+ * Encerra monitor e recursos associados à sessão.
+ */
+function encerrarControleSessao() {
+    encerrarMonitorInatividade();
+    ocultarAvisoInatividade();
+}
+
+/**
+ * Executa o logout solicitado manualmente pelo usuário.
+ *
+ * @returns {Promise<void>}
+ */
+async function executarLogoutManual() {
+    if (logoutEmAndamento) {
+        return;
+    }
+
+    logoutEmAndamento = true;
+    definirLogoutEmAndamento(true);
+
+    try {
+        encerrarControleSessao();
+
+        await pararScanner();
+
+        limparFeedback();
+
+        await logout();
+
+        console.info(
+            "[Sessão] Logout manual realizado com sucesso."
+        );
+    } catch (erro) {
+        console.error(
+            "[Sessão] Não foi possível realizar o logout:",
+            erro
+        );
+
+        mostrarMensagem(
+            "Não foi possível encerrar sua sessão. Tente novamente.",
+            "error"
+        );
+    } finally {
+        logoutEmAndamento = false;
+        definirLogoutEmAndamento(false);
+    }
+}
+
+/**
+ * Executa logout automático por inatividade.
+ *
+ * @returns {Promise<void>}
+ */
+async function executarLogoutInatividade() {
+    if (logoutEmAndamento) {
+        return;
+    }
+
+    logoutEmAndamento = true;
+
+    try {
+        encerrarControleSessao();
+
+        await pararScanner();
+
+        limparFeedback();
+
+        await logout();
+
+        console.info(
+            "[Sessão] Logout automático por inatividade realizado com sucesso."
+        );
+    } catch (erro) {
+        console.error(
+            "[Sessão] Falha ao executar logout automático por inatividade:",
+            erro
+        );
+
+        mostrarMensagem(
+            "Não foi possível encerrar automaticamente sua sessão.",
+            "error"
+        );
+    } finally {
+        logoutEmAndamento = false;
+    }
+}
+
+/**
  * Trata o cenário sem sessão autenticada.
  */
 function tratarSessaoNaoAutenticada() {
+    encerrarControleSessao();
+
+    resetAdminShell();
+
+    limparUsuarioSessao();
+    definirLogoutEmAndamento(false);
+
     mostrarPainelLogin();
 
     mostrarMensagemPainelLogin(
@@ -185,6 +406,11 @@ function tratarSessaoNaoAutenticada() {
  * @param {{uid?: string}} usuarioAutenticado
  */
 function tratarUsuarioSistemaAusente(usuarioAutenticado) {
+    encerrarControleSessao();
+
+    resetAdminShell();
+
+    limparUsuarioSessao();
     mostrarPainelLogin();
 
     mostrarMensagemPainelLogin(
@@ -195,7 +421,9 @@ function tratarUsuarioSistemaAusente(usuarioAutenticado) {
     console.warn(
         "[App] Documento do usuário não localizado.",
         {
-            uid: usuarioAutenticado?.uid || "não informado"
+            uid:
+                usuarioAutenticado?.uid ||
+                "não informado"
         }
     );
 }
@@ -206,6 +434,11 @@ function tratarUsuarioSistemaAusente(usuarioAutenticado) {
  * @param {{uid?: string}} usuarioAutenticado
  */
 function tratarUsuarioInativo(usuarioAutenticado) {
+    encerrarControleSessao();
+
+    resetAdminShell();
+
+    limparUsuarioSessao();
     mostrarPainelLogin();
 
     mostrarMensagemPainelLogin(
@@ -216,7 +449,9 @@ function tratarUsuarioInativo(usuarioAutenticado) {
     console.warn(
         "[App] Usuário operacionalmente inativo.",
         {
-            uid: usuarioAutenticado?.uid || "não informado"
+            uid:
+                usuarioAutenticado?.uid ||
+                "não informado"
         }
     );
 }
@@ -227,6 +462,11 @@ function tratarUsuarioInativo(usuarioAutenticado) {
  * @param {{uid?: string}} usuarioAutenticado
  */
 function tratarUsuarioNaoAutorizado(usuarioAutenticado) {
+    encerrarControleSessao();
+
+    resetAdminShell();
+
+    limparUsuarioSessao();
     mostrarPainelLogin();
 
     mostrarMensagemPainelLogin(
@@ -237,7 +477,9 @@ function tratarUsuarioNaoAutorizado(usuarioAutenticado) {
     console.warn(
         "[App] Usuário sem perfil operacional autorizado.",
         {
-            uid: usuarioAutenticado?.uid || "não informado"
+            uid:
+                usuarioAutenticado?.uid ||
+                "não informado"
         }
     );
 }
@@ -254,6 +496,11 @@ function tratarErroInicializacao(erro) {
     );
 
     try {
+        encerrarControleSessao();
+
+        resetAdminShell();
+
+        limparUsuarioSessao();
         mostrarPainelLogin();
 
         mostrarMensagemPainelLogin(
